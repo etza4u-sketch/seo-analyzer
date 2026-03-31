@@ -469,6 +469,46 @@
 
     .cmp-verdict strong { color: var(--green); }
 
+    .cmp-insights { margin-top: 20px; }
+    .cmp-insights-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+    .insight-card {
+      background: rgba(255,255,255,.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 10px;
+      transition: border-color .2s;
+    }
+
+    .insight-card:hover { border-color: rgba(99,102,241,.3); }
+
+    .insight-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .insight-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .95rem;
+      flex-shrink: 0;
+    }
+
+    .insight-title { font-weight: 700; font-size: .92rem; }
+    .insight-tag { padding: 2px 10px; border-radius: 10px; font-size: .72rem; font-weight: 600; margin-right: auto; }
+
+    .insight-body { font-size: .88rem; color: var(--text2); line-height: 1.7; }
+    .insight-body strong { color: var(--text); }
+    .insight-example { background: rgba(99,102,241,.06); border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: .85rem; border-right: 3px solid var(--primary); }
+    .insight-example code { background: rgba(0,0,0,.3); padding: 1px 6px; border-radius: 4px; font-size: .82rem; direction: ltr; display: inline; }
+
     /* ── Footer ── */
     .footer { text-align: center; padding: 32px 20px; color: var(--text3); font-size: .85rem; border-top: 1px solid var(--border); }
     .footer a { color: var(--primary); text-decoration: none; }
@@ -1042,6 +1082,235 @@ function renderCompare(a, b) {
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:1.2rem">&#127942;</span><strong style="font-size:1rem">סיכום ההשוואה</strong></div>
     <p>${verdictText}</p>
   </div>`;
+
+  // Insights - what competitor does better
+  h += renderCompareInsights(a, b, hostA, hostB);
+
+  h += '</div>';
+  return h;
+}
+
+/* ── Competitor insights ── */
+function renderCompareInsights(a, b, hostA, hostB) {
+  const insights = [];
+
+  // Title
+  if (a.meta.title && b.meta.title) {
+    const aLen = a.meta.title.length;
+    const bLen = b.meta.title.length;
+    const aGood = aLen >= 30 && aLen <= 60;
+    const bGood = bLen >= 30 && bLen <= 60;
+    if (!aGood && bGood) {
+      insights.push({
+        icon: '🏷', iconBg: 'var(--purple-bg)', iconColor: 'var(--purple)',
+        title: 'כותרת (Title) טובה יותר אצל המתחרה',
+        priority: 'high',
+        body: `למתחרה <strong>${esc(hostB)}</strong> כותרת באורך אופטימלי (${bLen} תווים) בעוד שלך ${aLen} תווים.`,
+        example: `המתחרה: <code>${esc(b.meta.title)}</code><br>שלך: <code>${esc(a.meta.title)}</code><br><strong>טיפ:</strong> כתוב כותרת בין 30-60 תווים הכוללת מילת מפתח ראשית.`,
+      });
+    }
+  } else if (!a.meta.title && b.meta.title) {
+    insights.push({
+      icon: '🏷', iconBg: 'var(--red-bg)', iconColor: 'var(--red)',
+      title: 'חסרה תגית כותרת — למתחרה יש',
+      priority: 'high',
+      body: `לאתר שלך אין תגית title בכלל, בעוד שלמתחרה יש כותרת מוגדרת.`,
+      example: `המתחרה: <code>${esc(b.meta.title)}</code><br><strong>טיפ:</strong> הוסף <code>&lt;title&gt;</code> עם מילות מפתח ממוקדות.`,
+    });
+  }
+
+  // Meta description
+  if (b.meta.metaDescription && !a.meta.metaDescription) {
+    insights.push({
+      icon: '📝', iconBg: 'var(--red-bg)', iconColor: 'var(--red)',
+      title: 'חסר תיאור מטא — למתחרה יש',
+      priority: 'high',
+      body: `למתחרה יש meta description שמופיע בתוצאות החיפוש, לך אין.`,
+      example: `המתחרה: <code>${esc(b.meta.metaDescription.substring(0, 100))}...</code><br><strong>טיפ:</strong> כתוב תיאור של 120-160 תווים עם קריאה לפעולה.`,
+    });
+  } else if (a.meta.metaDescription && b.meta.metaDescription) {
+    const aLen = a.meta.metaDescription.length;
+    const bLen = b.meta.metaDescription.length;
+    const aGood = aLen >= 120 && aLen <= 160;
+    const bGood = bLen >= 120 && bLen <= 160;
+    if (!aGood && bGood) {
+      insights.push({
+        icon: '📝', iconBg: 'var(--purple-bg)', iconColor: 'var(--purple)',
+        title: 'תיאור מטא טוב יותר אצל המתחרה',
+        priority: 'medium',
+        body: `למתחרה תיאור באורך אופטימלי (${bLen} תווים) בעוד שלך ${aLen} תווים.`,
+        example: `המתחרה: <code>${esc(b.meta.metaDescription.substring(0, 80))}...</code><br><strong>טיפ:</strong> שפר את התיאור ל-120-160 תווים.`,
+      });
+    }
+  }
+
+  // H1
+  const aH1 = a.headings.h1.count;
+  const bH1 = b.headings.h1.count;
+  if (aH1 !== 1 && bH1 === 1) {
+    insights.push({
+      icon: '📑', iconBg: 'var(--green-bg)', iconColor: 'var(--green)',
+      title: 'מבנה H1 נכון אצל המתחרה',
+      priority: aH1 === 0 ? 'high' : 'medium',
+      body: aH1 === 0
+        ? `למתחרה יש תגית H1 אחת כנדרש, לך אין H1 בכלל.`
+        : `למתחרה יש H1 יחיד כנדרש, לך יש ${aH1} תגיות H1.`,
+      example: `המתחרה: <code>&lt;h1&gt;${esc(b.headings.h1.samples[0] || '')}&lt;/h1&gt;</code><br><strong>טיפ:</strong> השתמש ב-H1 יחיד שמתאר את תוכן הדף.`,
+    });
+  }
+
+  // Structured data
+  if (a.structuredData.length === 0 && b.structuredData.length > 0) {
+    insights.push({
+      icon: '📊', iconBg: 'var(--blue-bg)', iconColor: 'var(--blue)',
+      title: 'למתחרה יש נתונים מובנים (Schema)',
+      priority: 'high',
+      body: `למתחרה יש ${b.structuredData.length} סוגי Schema: <strong>${b.structuredData.join(', ')}</strong>. לך אין בכלל.`,
+      example: `<strong>טיפ:</strong> הוסף JSON-LD עם <code>@type</code> מתאים. נתונים מובנים מסייעים ל-Rich Snippets בגוגל ומגדילים CTR בעד 30%.`,
+    });
+  }
+
+  // Open Graph
+  const aOG = Object.keys(a.openGraph).length;
+  const bOG = Object.keys(b.openGraph).length;
+  if (aOG < 3 && bOG >= 3) {
+    const bOGTags = Object.entries(b.openGraph).slice(0, 4).map(([k, v]) => `og:${k}="${v.substring(0, 40)}"`).join(', ');
+    insights.push({
+      icon: '📢', iconBg: 'var(--purple-bg)', iconColor: 'var(--purple)',
+      title: 'למתחרה תגיות Open Graph טובות יותר',
+      priority: 'medium',
+      body: `למתחרה ${bOG} תגיות OG, לך ${aOG || 'אין'}. OG משפיע על איך האתר נראה בשיתוף ברשתות חברתיות.`,
+      example: `המתחרה: <code>${esc(bOGTags)}</code><br><strong>טיפ:</strong> הוסף לפחות og:title, og:description, og:image, og:url.`,
+    });
+  }
+
+  // Twitter Card
+  const aTW = Object.keys(a.twitterCard).length;
+  const bTW = Object.keys(b.twitterCard).length;
+  if (aTW === 0 && bTW >= 2) {
+    insights.push({
+      icon: '🐦', iconBg: 'var(--blue-bg)', iconColor: 'var(--blue)',
+      title: 'למתחרה תגיות Twitter Card',
+      priority: 'low',
+      body: `למתחרה ${bTW} תגיות Twitter Card, לך אין. זה משפיע על תצוגת הקישורים בטוויטר/X.`,
+      example: `<strong>טיפ:</strong> הוסף <code>twitter:card</code>, <code>twitter:title</code>, <code>twitter:description</code>.`,
+    });
+  }
+
+  // HTTPS
+  if (!a.security.isHttps && b.security.isHttps) {
+    insights.push({
+      icon: '🔒', iconBg: 'var(--red-bg)', iconColor: 'var(--red)',
+      title: 'המתחרה משתמש ב-HTTPS, אתה לא',
+      priority: 'high',
+      body: `HTTPS הוא גורם דירוג של גוגל. המתחרה מאובטח, אתה לא.`,
+      example: `<strong>טיפ:</strong> התקן תעודת SSL (חינם ב-Let's Encrypt) והפנה את כל התעבורה ל-HTTPS.`,
+    });
+  }
+
+  // HSTS
+  if (!a.security.hsts && b.security.hsts) {
+    insights.push({
+      icon: '🛡', iconBg: 'var(--yellow-bg)', iconColor: 'var(--yellow)',
+      title: 'למתחרה יש HSTS, לך אין',
+      priority: 'low',
+      body: `HSTS מבטיח שהדפדפן תמיד יגש באמצעות HTTPS. המתחרה הפעיל את זה.`,
+      example: `<strong>טיפ:</strong> הוסף header: <code>Strict-Transport-Security: max-age=31536000</code>`,
+    });
+  }
+
+  // Canonical
+  if (!a.meta.canonical && b.meta.canonical) {
+    insights.push({
+      icon: '🔗', iconBg: 'var(--yellow-bg)', iconColor: 'var(--yellow)',
+      title: 'למתחרה יש Canonical URL',
+      priority: 'medium',
+      body: `Canonical URL מונע תוכן כפול בגוגל. למתחרה מוגדר, לך לא.`,
+      example: `המתחרה: <code>&lt;link rel="canonical" href="${esc(b.meta.canonical.substring(0, 60))}"&gt;</code><br><strong>טיפ:</strong> הוסף canonical לכל דף כדי למנוע אינדוקס כפול.`,
+    });
+  }
+
+  // Images alt
+  if (a.images.withoutAlt > 0 && b.images.withoutAlt === 0 && b.images.total > 0) {
+    insights.push({
+      icon: '🖼', iconBg: 'var(--yellow-bg)', iconColor: 'var(--yellow)',
+      title: 'למתחרה alt text לכל התמונות',
+      priority: 'medium',
+      body: `יש לך ${a.images.withoutAlt} תמונות ללא טקסט חלופי. למתחרה כל ${b.images.total} התמונות עם alt.`,
+      example: `<strong>טיפ:</strong> הוסף <code>alt="תיאור התמונה"</code> לכל תמונה. זה חשוב לנגישות ול-SEO תמונות.`,
+    });
+  }
+
+  // Word count
+  if (a.content.wordCount < 300 && b.content.wordCount >= 300) {
+    insights.push({
+      icon: '📄', iconBg: 'var(--blue-bg)', iconColor: 'var(--blue)',
+      title: 'למתחרה יותר תוכן',
+      priority: 'medium',
+      body: `יש לך ${a.content.wordCount} מילים בלבד, למתחרה ${b.content.wordCount}. גוגל מעדיף תוכן מעמיק.`,
+      example: `<strong>טיפ:</strong> הוסף תוכן איכותי — מומלץ לפחות 300 מילים לדף, ו-1000+ לדפי תוכן מרכזיים.`,
+    });
+  }
+
+  // Language
+  if (!a.meta.lang && b.meta.lang) {
+    insights.push({
+      icon: '🌐', iconBg: 'var(--blue-bg)', iconColor: 'var(--blue)',
+      title: 'למתחרה מוגדרת שפת הדף',
+      priority: 'low',
+      body: `למתחרה מוגדר <code>lang="${esc(b.meta.lang)}"</code>, לך חסר. זה עוזר לגוגל ולקוראי מסך.`,
+      example: `<strong>טיפ:</strong> הוסף <code>&lt;html lang="he"&gt;</code> (או שפה מתאימה) לתגית html.`,
+    });
+  }
+
+  // AI health
+  const aiA = a.aiSignals.score;
+  const aiB = b.aiSignals.score;
+  if (aiA > 40 && aiB < 20) {
+    insights.push({
+      icon: '🤖', iconBg: 'var(--red-bg)', iconColor: 'var(--red)',
+      title: 'התוכן שלך נראה "AI יותר" מהמתחרה',
+      priority: 'high',
+      body: `ציון AI שלך: ${aiA}/100, המתחרה: ${aiB}/100. גוגל עשוי להעניש תוכן שנראה מיוצר אוטומטית.`,
+      example: `<strong>טיפ:</strong> שכתב תוכן עם סגנון אישי, הוסף דוגמאות ספציפיות, חוויות אישיות, ונתונים ייחודיים.`,
+    });
+  }
+
+  // Response time
+  if (a.fetchTime > 2000 && b.fetchTime < 1000) {
+    insights.push({
+      icon: '⚡', iconBg: 'var(--yellow-bg)', iconColor: 'var(--yellow)',
+      title: 'המתחרה מהיר יותר ממך',
+      priority: 'medium',
+      body: `זמן תגובה שלך: ${a.fetchTime}ms, המתחרה: ${b.fetchTime}ms. מהירות היא גורם דירוג.`,
+      example: `<strong>טיפ:</strong> אופטימיזציה: דחיסת תמונות, CDN, caching, הקטנת JS/CSS.`,
+    });
+  }
+
+  if (insights.length === 0) {
+    return `<div class="cmp-insights"><div class="cmp-insights-title">💪 מצוין!</div><p style="color:var(--text2)">לא נמצאו נקודות בולטות שבהן המתחרה עושה טוב יותר ממך. המשך כך!</p></div>`;
+  }
+
+  const prColors = { high: { bg: 'var(--red-bg)', c: 'var(--red)', label: 'קריטי' }, medium: { bg: 'var(--yellow-bg)', c: 'var(--yellow)', label: 'בינוני' }, low: { bg: 'var(--blue-bg)', c: 'var(--blue)', label: 'נמוך' } };
+  insights.sort((x, y) => ({ high: 0, medium: 1, low: 2 }[x.priority] - { high: 0, medium: 1, low: 2 }[y.priority]));
+
+  let h = `<div class="cmp-insights">
+    <div class="cmp-insights-title">📚 מה המתחרה עושה טוב יותר? (${insights.length} תובנות)</div>`;
+
+  for (const ins of insights) {
+    const pr = prColors[ins.priority];
+    h += `<div class="insight-card">
+      <div class="insight-head">
+        <div class="insight-icon" style="background:${ins.iconBg};color:${ins.iconColor}">${ins.icon}</div>
+        <span class="insight-title">${ins.title}</span>
+        <span class="insight-tag" style="background:${pr.bg};color:${pr.c}">${pr.label}</span>
+      </div>
+      <div class="insight-body">
+        <p>${ins.body}</p>
+        <div class="insight-example">${ins.example}</div>
+      </div>
+    </div>`;
+  }
 
   h += '</div>';
   return h;
