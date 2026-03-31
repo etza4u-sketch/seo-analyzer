@@ -314,8 +314,166 @@
 
     .btn-export-primary:hover { box-shadow: 0 6px 20px var(--primary-glow); border-color: transparent; }
 
+    /* ── Competitor input ── */
+    .compare-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      justify-content: center;
+    }
+
+    .compare-toggle label { color: var(--text2); font-size: .9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+
+    .toggle-switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      background: var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background .3s;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .3s;
+    }
+
+    .toggle-switch.active { background: var(--primary); }
+    .toggle-switch.active::after { transform: translateX(-18px); }
+
+    .competitor-row {
+      display: none;
+      gap: 10px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 6px;
+      margin-top: 10px;
+      transition: border-color .3s;
+      align-items: center;
+    }
+
+    .competitor-row.visible { display: flex; }
+    .competitor-row:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+    .competitor-row input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.05rem;
+      padding: 12px 16px;
+      outline: none;
+      direction: ltr;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .competitor-row input::placeholder { color: var(--text3); }
+
+    .vs-badge {
+      background: var(--grad);
+      color: #fff;
+      font-weight: 800;
+      font-size: .75rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+
+    /* ── Comparison table ── */
+    .cmp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+      margin-bottom: 16px;
+    }
+
+    .cmp-table th {
+      padding: 12px 14px;
+      text-align: right;
+      background: rgba(99,102,241,.08);
+      font-weight: 700;
+      font-size: .85rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .cmp-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cmp-table tr:last-child td { border-bottom: none; }
+
+    .cmp-label { color: var(--text2); font-weight: 500; }
+
+    .cmp-winner { background: rgba(16,185,129,0.06); }
+
+    .cmp-bar-wrap { display: flex; align-items: center; gap: 8px; }
+
+    .cmp-bar {
+      height: 8px;
+      border-radius: 4px;
+      transition: width .8s ease;
+    }
+
+    .cmp-bar-a { background: var(--primary); }
+    .cmp-bar-b { background: var(--purple); }
+
+    .cmp-delta {
+      font-size: .78rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .cmp-delta-pos { background: var(--green-bg); color: var(--green); }
+    .cmp-delta-neg { background: var(--red-bg); color: var(--red); }
+    .cmp-delta-eq { background: rgba(100,116,139,.15); color: var(--text2); }
+
+    .cmp-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cmp-site-badge {
+      padding: 5px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: .85rem;
+    }
+
+    .cmp-site-a { background: rgba(99,102,241,.12); color: var(--primary); }
+    .cmp-site-b { background: var(--purple-bg); color: var(--purple); }
+
+    .cmp-verdict {
+      background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(99,102,241,.08));
+      border: 1px solid rgba(16,185,129,.2);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      margin-top: 16px;
+      font-size: .95rem;
+    }
+
+    .cmp-verdict strong { color: var(--green); }
+
     /* ── Footer ── */
     .footer { text-align: center; padding: 32px 20px; color: var(--text3); font-size: .85rem; border-top: 1px solid var(--border); }
+    .footer a { color: var(--primary); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    .footer .copyright { margin-top: 6px; font-size: .8rem; }
 
     /* ── Responsive ── */
     @media (max-width: 640px) {
@@ -324,6 +482,7 @@
       .grid2 { grid-template-columns: 1fr; }
       .tabs { gap: 0; }
       .tab-btn { padding: 8px 14px; font-size: .82rem; }
+      .cmp-table th, .cmp-table td { padding: 8px 10px; font-size: .82rem; }
     }
   </style>
 </head>
@@ -336,6 +495,16 @@
     <div class="search-row">
       <input type="text" id="urlInput" placeholder="example.com" dir="ltr" autocomplete="off" spellcheck="false">
       <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">נתח</button>
+    </div>
+    <div class="competitor-row" id="competitorRow">
+      <input type="text" id="competitorInput" placeholder="כתובת אתר מתחרה..." dir="ltr" autocomplete="off" spellcheck="false">
+      <span class="vs-badge">VS</span>
+    </div>
+    <div class="compare-toggle">
+      <label onclick="toggleCompare()">
+        <div class="toggle-switch" id="compareToggle"></div>
+        <span>השווה עם מתחרה</span>
+      </label>
     </div>
     <div class="examples">
       <span>דוגמאות:</span>
@@ -381,26 +550,53 @@
   </div>
 </div>
 
-<div class="footer">SEO AI Analyzer &mdash; ניתוח SEO ואבחון בינה מלאכותית</div>
+<div class="footer">
+  SEO AI Analyzer &mdash; כלי ניתוח SEO ואבחון בינה מלאכותית
+  <div class="copyright">&copy; 2025 <strong>רז שץ</strong> &mdash; מאמן בינה מלאכותית. כל הזכויות שמורות.</div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
+let _compareMode = false;
+let _competitorData = null;
 
 function tryUrl(u) { $('urlInput').value = u; analyze(); }
+
+function toggleCompare() {
+  _compareMode = !_compareMode;
+  $('compareToggle').classList.toggle('active', _compareMode);
+  $('competitorRow').classList.toggle('visible', _compareMode);
+  if (_compareMode) $('competitorInput').focus();
+}
+
+async function fetchAnalysis(url) {
+  const r = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'שגיאה בניתוח');
+  return d;
+}
 
 async function analyze() {
   const raw = $('urlInput').value.trim();
   if (!raw) return;
   const url = raw.match(/^https?:\/\//) ? raw : 'https://' + raw;
 
+  const compRaw = _compareMode ? $('competitorInput').value.trim() : '';
+  const compUrl = compRaw ? (compRaw.match(/^https?:\/\//) ? compRaw : 'https://' + compRaw) : '';
+
   show('loading'); hide('errorBox'); hide('results');
   $('analyzeBtn').disabled = true;
+  $('loading').querySelector('p').textContent = _compareMode && compUrl ? 'מנתח את שני האתרים...' : 'מנתח את האתר...';
 
   try {
-    const r = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'שגיאה בניתוח');
-    render(d);
+    let mainData, compData = null;
+    if (_compareMode && compUrl) {
+      [mainData, compData] = await Promise.all([fetchAnalysis(url), fetchAnalysis(compUrl)]);
+    } else {
+      mainData = await fetchAnalysis(url);
+    }
+    _competitorData = compData;
+    render(mainData);
     show('results');
   } catch (e) {
     $('errorBox').textContent = e.message;
@@ -412,6 +608,7 @@ async function analyze() {
 }
 
 $('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
+$('competitorInput').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
 
 function show(id) { $(id).classList.add('active'); }
 function hide(id) { $(id).classList.remove('active'); }
@@ -454,6 +651,7 @@ function render(d) {
     { id: 'technical', label: 'טכני' },
     { id: 'checks', label: 'בדיקות' },
   ];
+  if (_competitorData) tabs.splice(1, 0, { id: 'compare', label: 'השוואת מתחרים' });
 
   $('tabsBar').innerHTML = tabs.map((t, i) =>
     `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
@@ -469,6 +667,11 @@ function render(d) {
       ${renderQuickStats(d)}
     </div>
   </div>`;
+
+  // Compare
+  if (_competitorData) {
+    html += `<div class="tab-panel" id="panel-compare">${renderCompare(d, _competitorData)}</div>`;
+  }
 
   // AI
   html += `<div class="tab-panel" id="panel-ai">${renderAI(d)}</div>`;
@@ -714,6 +917,137 @@ function renderChecks(d) {
   h += '</div>';
   return h;
 }
+
+/* ══════════════════════════════════════════
+   COMPETITOR COMPARISON
+   ══════════════════════════════════════════ */
+
+function renderCompare(a, b) {
+  const hostA = new URL(a.url).hostname;
+  const hostB = new URL(b.url).hostname;
+  const aiHealthA = Math.max(0, 100 - a.aiSignals.score);
+  const aiHealthB = Math.max(0, 100 - b.aiSignals.score);
+  const secA = a.security.isHttps ? (a.security.hsts ? 95 : 65) : 15;
+  const secB = b.security.isHttps ? (b.security.hsts ? 95 : 65) : 15;
+
+  const metrics = [
+    { label: 'ציון SEO כללי', a: a.scores.percentage, b: b.scores.percentage, unit: '%', higher: true },
+    { label: 'בריאות AI', a: aiHealthA, b: aiHealthB, unit: '%', higher: true },
+    { label: 'אבטחה', a: secA, b: secB, unit: '%', higher: true },
+    { label: 'נגישות', a: a.accessibility.score, b: b.accessibility.score, unit: '%', higher: true },
+    { label: 'מילים בדף', a: a.content.wordCount, b: b.content.wordCount, unit: '', higher: true },
+    { label: 'פסקאות', a: a.content.paragraphCount, b: b.content.paragraphCount, unit: '', higher: true },
+    { label: 'תמונות', a: a.images.total, b: b.images.total, unit: '', higher: true },
+    { label: 'תמונות ללא alt', a: a.images.withoutAlt, b: b.images.withoutAlt, unit: '', higher: false },
+    { label: 'קישורים פנימיים', a: a.links.internal, b: b.links.internal, unit: '', higher: true },
+    { label: 'קישורים חיצוניים', a: a.links.external, b: b.links.external, unit: '', higher: true },
+    { label: 'גודל HTML', a: a.performance.htmlSizeKB, b: b.performance.htmlSizeKB, unit: ' KB', higher: false },
+    { label: 'זמן תגובה', a: a.fetchTime, b: b.fetchTime, unit: ' ms', higher: false },
+    { label: 'סקריפטים', a: a.performance.scripts.total, b: b.performance.scripts.total, unit: '', higher: false },
+    { label: 'נתונים מובנים', a: a.structuredData.length, b: b.structuredData.length, unit: '', higher: true },
+  ];
+
+  let winsA = 0, winsB = 0, ties = 0;
+  metrics.forEach(m => {
+    if (m.a === m.b) ties++;
+    else if ((m.higher && m.a > m.b) || (!m.higher && m.a < m.b)) winsA++;
+    else winsB++;
+  });
+
+  let h = `<div class="card" style="margin-bottom:20px">
+    <div class="cmp-header">
+      <span style="font-size:1.3rem">&#9878;</span>
+      <span class="card-title" style="font-size:1.1rem">השוואת מתחרים</span>
+    </div>
+    <div style="display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:20px">
+      <span class="cmp-site-badge cmp-site-a" dir="ltr">${esc(hostA)}</span>
+      <span style="font-weight:800;color:var(--text3);font-size:1.1rem">VS</span>
+      <span class="cmp-site-badge cmp-site-b" dir="ltr">${esc(hostB)}</span>
+    </div>
+
+    <table class="cmp-table">
+      <thead><tr>
+        <th>מדד</th>
+        <th dir="ltr" style="text-align:center">${esc(hostA)}</th>
+        <th dir="ltr" style="text-align:center">${esc(hostB)}</th>
+        <th style="text-align:center">הפרש</th>
+      </tr></thead>
+      <tbody>`;
+
+  for (const m of metrics) {
+    const aWins = m.higher ? m.a > m.b : m.a < m.b;
+    const bWins = m.higher ? m.b > m.a : m.b < m.a;
+    const eq = m.a === m.b;
+    const diff = m.a - m.b;
+    const absDiff = Math.abs(diff);
+
+    let deltaHtml;
+    if (eq) {
+      deltaHtml = `<span class="cmp-delta cmp-delta-eq">שווה</span>`;
+    } else if (aWins) {
+      deltaHtml = `<span class="cmp-delta cmp-delta-pos">+${absDiff}${m.unit}</span>`;
+    } else {
+      deltaHtml = `<span class="cmp-delta cmp-delta-neg">-${absDiff}${m.unit}</span>`;
+    }
+
+    const maxVal = Math.max(m.a, m.b, 1);
+    const barAW = Math.round((m.a / maxVal) * 100);
+    const barBW = Math.round((m.b / maxVal) * 100);
+
+    h += `<tr>
+      <td class="cmp-label">${m.label}</td>
+      <td style="text-align:center;${aWins ? 'font-weight:700;color:var(--green)' : ''}" dir="ltr">
+        <div class="cmp-bar-wrap" style="justify-content:center">
+          <div class="cmp-bar cmp-bar-a" style="width:${barAW}%;min-width:4px;max-width:80px"></div>
+          <span>${m.a}${m.unit}</span>
+        </div>
+      </td>
+      <td style="text-align:center;${bWins ? 'font-weight:700;color:var(--green)' : ''}" dir="ltr">
+        <div class="cmp-bar-wrap" style="justify-content:center">
+          <div class="cmp-bar cmp-bar-b" style="width:${barBW}%;min-width:4px;max-width:80px"></div>
+          <span>${m.b}${m.unit}</span>
+        </div>
+      </td>
+      <td style="text-align:center">${deltaHtml}</td>
+    </tr>`;
+  }
+
+  h += '</tbody></table>';
+
+  // Category comparison
+  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות' };
+  h += `<div style="margin-top:16px"><strong style="font-size:.95rem">ציונים לפי קטגוריה:</strong></div>
+  <table class="cmp-table" style="margin-top:8px"><thead><tr><th>קטגוריה</th><th style="text-align:center" dir="ltr">${esc(hostA)}</th><th style="text-align:center" dir="ltr">${esc(hostB)}</th></tr></thead><tbody>`;
+
+  for (const [key, va] of Object.entries(a.scores.categories)) {
+    const vb = b.scores.categories[key];
+    if (!vb) continue;
+    const pctA = Math.round((va.score / va.max) * 100);
+    const pctB = Math.round((vb.score / vb.max) * 100);
+    h += `<tr>
+      <td class="cmp-label">${catNames[key] || key}</td>
+      <td style="text-align:center;font-weight:600;color:${pClr(pctA)}">${pctA}%</td>
+      <td style="text-align:center;font-weight:600;color:${pClr(pctB)}">${pctB}%</td>
+    </tr>`;
+  }
+  h += '</tbody></table>';
+
+  // Verdict
+  const winner = winsA > winsB ? hostA : winsB > winsA ? hostB : null;
+  const verdictText = winner
+    ? `<strong>${esc(winner)}</strong> מוביל ב-<strong>${Math.max(winsA, winsB)}</strong> מדדים מתוך ${metrics.length}. ${esc(winner === hostA ? hostB : hostA)} מוביל ב-${Math.min(winsA, winsB)} מדדים. ${ties} מדדים שווים.`
+    : `שני האתרים שווים! כל אחד מוביל ב-${winsA} מדדים עם ${ties} שוויונות.`;
+
+  h += `<div class="cmp-verdict">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:1.2rem">&#127942;</span><strong style="font-size:1rem">סיכום ההשוואה</strong></div>
+    <p>${verdictText}</p>
+  </div>`;
+
+  h += '</div>';
+  return h;
+}
+
+function pClr(p) { return p >= 75 ? 'var(--green)' : p >= 45 ? 'var(--yellow)' : 'var(--red)'; }
 
 /* ══════════════════════════════════════════
    EXPORT FUNCTIONS
