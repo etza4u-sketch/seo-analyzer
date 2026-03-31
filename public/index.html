@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEO AI Analyzer - ניתוח SEO ואבחון בינה מלאכותית</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-glow: rgba(99,102,241,0.25);
+      --bg: #0b0d14;
+      --bg2: #111420;
+      --card: #161927;
+      --card-hover: #1c2035;
+      --border: #252940;
+      --text: #e8ecf4;
+      --text2: #8b92a8;
+      --text3: #5c6380;
+      --green: #10b981;
+      --green-bg: rgba(16,185,129,0.12);
+      --yellow: #f59e0b;
+      --yellow-bg: rgba(245,158,11,0.12);
+      --red: #ef4444;
+      --red-bg: rgba(239,68,68,0.12);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59,130,246,0.12);
+      --purple: #a855f7;
+      --purple-bg: rgba(168,85,247,0.12);
+      --grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      --radius: 14px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Heebo', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      padding: 56px 20px 44px;
+      text-align: center;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.10) 0%, transparent 60%);
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    .logo { font-size: 2.5rem; font-weight: 900; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+    .tagline { color: var(--text2); font-size: 1.05rem; margin-bottom: 28px; max-width: 520px; margin-left: auto; margin-right: auto; }
+
+    .search-wrap { max-width: 640px; margin: 0 auto; position: relative; }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 6px;
+      transition: border-color .3s;
+    }
+
+    .search-row:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+    .search-row input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.05rem;
+      padding: 12px 16px;
+      outline: none;
+      direction: ltr;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .search-row input::placeholder { color: var(--text3); }
+
+    .btn-analyze {
+      padding: 12px 32px;
+      background: var(--grad);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .2s;
+      white-space: nowrap;
+    }
+
+    .btn-analyze:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--primary-glow); }
+    .btn-analyze:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .examples { margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .examples span { color: var(--text3); font-size: .85rem; }
+
+    .ex-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: .82rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .2s, color .2s;
+    }
+
+    .ex-btn:hover { background: var(--card-hover); color: var(--text); }
+
+    /* ── Layout ── */
+    .container { max-width: 1140px; margin: 0 auto; padding: 28px 16px 60px; }
+
+    /* ── Loading ── */
+    .loading { display: none; text-align: center; padding: 70px 20px; }
+    .loading.active { display: block; }
+    .loader { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 18px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: var(--text2); }
+
+    .error-box { display: none; background: var(--red-bg); border: 1px solid rgba(239,68,68,.3); border-radius: var(--radius); padding: 14px 20px; text-align: center; color: var(--red); margin: 20px auto; max-width: 600px; }
+    .error-box.active { display: block; }
+
+    #results { display: none; animation: fadeUp .5s ease; }
+    #results.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── URL Info Bar ── */
+    .url-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .url-bar .url { color: var(--blue); font-weight: 500; direction: ltr; word-break: break-all; }
+    .url-bar .badge { padding: 3px 10px; border-radius: 8px; font-size: .78rem; font-weight: 600; }
+    .badge-green { background: var(--green-bg); color: var(--green); }
+    .badge-red { background: var(--red-bg); color: var(--red); }
+    .badge-gray { background: rgba(100,116,139,.15); color: var(--text2); }
+
+    /* ── Score Row ── */
+    .score-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+    .score-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      text-align: center;
+      transition: border-color .3s;
+    }
+
+    .score-card:hover { border-color: var(--primary); }
+
+    .ring-wrap { width: 110px; height: 110px; margin: 0 auto 12px; position: relative; }
+    .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+    .ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1.2s ease; }
+    .ring-val { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.6rem; font-weight: 800; }
+    .ring-val small { font-size: .7rem; font-weight: 500; color: var(--text2); }
+    .score-label { font-weight: 600; font-size: .95rem; margin-bottom: 2px; }
+    .score-sub { color: var(--text2); font-size: .8rem; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: .92rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .tab-panel { display: none; animation: fadeUp .3s ease; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards grid ── */
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: border-color .25s;
+    }
+
+    .card:hover { border-color: rgba(99,102,241,.3); }
+
+    .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .card-ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+    .card-title { font-weight: 700; font-size: 1rem; }
+
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .row:last-child { border-bottom: none; }
+    .row-label { color: var(--text2); font-size: .9rem; }
+    .row-value { font-weight: 600; font-size: .9rem; }
+
+    /* ── Checks ── */
+    .check { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .check:last-child { border-bottom: none; }
+    .check-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-pass { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot-partial { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .dot-fail { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .check-info { flex: 1; }
+    .check-name { font-weight: 600; font-size: .9rem; }
+    .check-tip { color: var(--text2); font-size: .82rem; }
+    .check-pts { font-weight: 700; font-size: .85rem; direction: ltr; min-width: 38px; text-align: left; }
+
+    /* ── AI Section ── */
+    .ai-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .ai-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .ai-title { font-weight: 700; font-size: 1.1rem; }
+    .ai-level { padding: 4px 14px; border-radius: 20px; font-size: .82rem; font-weight: 700; }
+
+    .signal { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: rgba(255,255,255,.02); border-radius: 10px; margin-bottom: 6px; font-size: .9rem; }
+    .signal-icon { font-size: 1rem; flex-shrink: 0; }
+    .signal-text { flex: 1; }
+    .signal-ct { color: var(--text3); font-size: .82rem; direction: ltr; }
+    .signal-badge { padding: 2px 10px; border-radius: 12px; font-size: .72rem; font-weight: 600; }
+
+    /* ── Recommendations ── */
+    .recs-card {
+      background: linear-gradient(135deg, rgba(99,102,241,.06), rgba(168,85,247,.06));
+      border: 1px solid rgba(99,102,241,.15);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+
+    .recs-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 14px; }
+
+    .rec {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,.2);
+      border-radius: 10px;
+      margin-bottom: 6px;
+      font-size: .9rem;
+    }
+
+    .rec-pr { padding: 2px 10px; border-radius: 12px; font-size: .72rem; font-weight: 700; white-space: nowrap; margin-top: 2px; }
+    .pr-h { background: var(--red-bg); color: var(--red); }
+    .pr-m { background: var(--yellow-bg); color: var(--yellow); }
+    .pr-l { background: var(--blue-bg); color: var(--blue); }
+
+    /* ── Export buttons ── */
+    .export-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 12px;
+      font-size: .9rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .2s, background .2s;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .btn-export:hover { transform: translateY(-1px); border-color: var(--primary); box-shadow: 0 4px 15px rgba(99,102,241,.15); }
+    .btn-export svg { width: 18px; height: 18px; }
+
+    .btn-export-primary {
+      background: var(--grad);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .btn-export-primary:hover { box-shadow: 0 6px 20px var(--primary-glow); border-color: transparent; }
+
+    /* ── Footer ── */
+    .footer { text-align: center; padding: 32px 20px; color: var(--text3); font-size: .85rem; border-top: 1px solid var(--border); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .logo { font-size: 2rem; }
+      .score-row { grid-template-columns: 1fr 1fr; }
+      .grid2 { grid-template-columns: 1fr; }
+      .tabs { gap: 0; }
+      .tab-btn { padding: 8px 14px; font-size: .82rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo">SEO AI Analyzer</div>
+  <p class="tagline">כלי מתקדם לניתוח SEO ואבחון תוכן בינה מלאכותית. הזן כתובת אתר וקבל דוח מקיף תוך שניות.</p>
+  <div class="search-wrap">
+    <div class="search-row">
+      <input type="text" id="urlInput" placeholder="example.com" dir="ltr" autocomplete="off" spellcheck="false">
+      <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">נתח</button>
+    </div>
+    <div class="examples">
+      <span>דוגמאות:</span>
+      <button class="ex-btn" onclick="tryUrl('https://github.com')">github.com</button>
+      <button class="ex-btn" onclick="tryUrl('https://wikipedia.org')">wikipedia.org</button>
+      <button class="ex-btn" onclick="tryUrl('https://google.com')">google.com</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="loading" id="loading"><div class="loader"></div><p>מנתח את האתר...</p></div>
+  <div class="error-box" id="errorBox"></div>
+
+  <div id="results">
+    <!-- URL bar -->
+    <div class="url-bar" id="urlBar"></div>
+
+    <!-- Export bar -->
+    <div class="export-bar" id="exportBar">
+      <button class="btn-export btn-export-primary" onclick="generateReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        ייצא דוח PDF
+      </button>
+      <button class="btn-export" onclick="downloadJSON()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        הורד JSON
+      </button>
+      <button class="btn-export" onclick="copyReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        העתק סיכום
+      </button>
+    </div>
+
+    <!-- Score rings -->
+    <div class="score-row" id="scoreRow"></div>
+
+    <!-- Tabs -->
+    <div class="tabs" id="tabsBar"></div>
+
+    <!-- Tab panels -->
+    <div id="panels"></div>
+  </div>
+</div>
+
+<div class="footer">SEO AI Analyzer &mdash; ניתוח SEO ואבחון בינה מלאכותית</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function tryUrl(u) { $('urlInput').value = u; analyze(); }
+
+async function analyze() {
+  const raw = $('urlInput').value.trim();
+  if (!raw) return;
+  const url = raw.match(/^https?:\/\//) ? raw : 'https://' + raw;
+
+  show('loading'); hide('errorBox'); hide('results');
+  $('analyzeBtn').disabled = true;
+
+  try {
+    const r = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'שגיאה בניתוח');
+    render(d);
+    show('results');
+  } catch (e) {
+    $('errorBox').textContent = e.message;
+    show('errorBox');
+  } finally {
+    hide('loading');
+    $('analyzeBtn').disabled = false;
+  }
+}
+
+$('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
+
+function show(id) { $(id).classList.add('active'); }
+function hide(id) { $(id).classList.remove('active'); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function trunc(s, n) { return !s ? '' : s.length > n ? s.slice(0, n) + '...' : s; }
+function clr(p) { return p >= 75 ? 'var(--green)' : p >= 45 ? 'var(--yellow)' : 'var(--red)'; }
+
+let _lastData = null; // store last analysis for export
+
+/* ── Render ── */
+function render(d) {
+  _lastData = d;
+  const s = d.scores;
+  const ai = d.aiSignals;
+  const aiHealth = Math.max(0, 100 - ai.score);
+  const secPct = d.security.isHttps ? (d.security.hsts ? 95 : 65) : 15;
+  const accPct = d.accessibility.score;
+
+  // URL bar
+  $('urlBar').innerHTML = `
+    <span class="url">${esc(d.url)}</span>
+    <span class="badge ${d.statusCode === 200 ? 'badge-green' : 'badge-red'}">${d.statusCode}</span>
+    <span class="badge badge-gray">${d.fetchTime} ms</span>
+    <span class="badge badge-gray">${d.performance.htmlSizeKB} KB</span>
+    <span class="badge badge-gray">${d.content.wordCount} מילים</span>`;
+
+  // Score rings
+  $('scoreRow').innerHTML = [
+    ring(s.percentage, 'ציון SEO', gradeHe(s.percentage)),
+    ring(aiHealth, 'בריאות AI', { low: 'תקין', medium: 'נדרשת בדיקה', high: 'חשוד' }[ai.level]),
+    ring(secPct, 'אבטחה', d.security.isHttps ? 'HTTPS' : 'חסר HTTPS'),
+    ring(accPct, 'נגישות', accPct >= 80 ? 'טוב' : accPct >= 50 ? 'בינוני' : 'דורש שיפור'),
+  ].join('');
+
+  // Tabs
+  const tabs = [
+    { id: 'overview', label: 'סקירה כללית' },
+    { id: 'ai', label: 'אבחון AI' },
+    { id: 'meta', label: 'מטא ותוכן' },
+    { id: 'technical', label: 'טכני' },
+    { id: 'checks', label: 'בדיקות' },
+  ];
+
+  $('tabsBar').innerHTML = tabs.map((t, i) =>
+    `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
+
+  // Panels
+  let html = '';
+
+  // Overview
+  html += `<div class="tab-panel active" id="panel-overview">
+    ${renderRecs(d)}
+    <div class="grid2">
+      ${renderCategoryCard(s)}
+      ${renderQuickStats(d)}
+    </div>
+  </div>`;
+
+  // AI
+  html += `<div class="tab-panel" id="panel-ai">${renderAI(d)}</div>`;
+
+  // Meta & Content
+  html += `<div class="tab-panel" id="panel-meta">${renderMeta(d)}</div>`;
+
+  // Technical
+  html += `<div class="tab-panel" id="panel-technical">${renderTechnical(d)}</div>`;
+
+  // Checks
+  html += `<div class="tab-panel" id="panel-checks">${renderChecks(d)}</div>`;
+
+  $('panels').innerHTML = html;
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${id}')"]`).classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+function gradeHe(p) { return p >= 90 ? 'מצוין' : p >= 75 ? 'טוב' : p >= 50 ? 'בינוני' : p >= 30 ? 'חלש' : 'דורש שיפור'; }
+
+function ring(pct, label, sub) {
+  const c = clr(pct);
+  const circ = 2 * Math.PI * 48;
+  const off = circ - (pct / 100) * circ;
+  return `<div class="score-card">
+    <div class="ring-wrap">
+      <svg viewBox="0 0 108 108"><circle class="ring-bg" cx="54" cy="54" r="48"/><circle class="ring-fg" cx="54" cy="54" r="48" stroke="${c}" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/></svg>
+      <div class="ring-val" style="color:${c}">${pct}<small>%</small></div>
+    </div>
+    <div class="score-label">${label}</div>
+    <div class="score-sub">${sub}</div>
+  </div>`;
+}
+
+/* ── Recommendations ── */
+function renderRecs(d) {
+  const recs = [];
+  for (const c of d.scores.checks) {
+    if (c.score < c.max) {
+      const pr = c.score === 0 ? 'h' : (c.score / c.max) < 0.6 ? 'm' : 'l';
+      recs.push({ pr, text: `<strong>${c.name}:</strong> ${c.tip}` });
+    }
+  }
+  if (d.aiSignals.level === 'high') recs.unshift({ pr: 'h', text: '<strong>תוכן AI:</strong> זוהו סימנים משמעותיים לתוכן שנוצר ע"י AI — שכתב תוכן בצורה ייחודית' });
+  else if (d.aiSignals.level === 'medium') recs.push({ pr: 'm', text: '<strong>תוכן AI:</strong> נמצאו מספר סימנים — סקור וגוון את הכתיבה' });
+
+  recs.sort((a, b) => ({ h: 0, m: 1, l: 2 }[a.pr] - { h: 0, m: 1, l: 2 }[b.pr]));
+  if (!recs.length) return '';
+
+  const prHe = { h: 'קריטי', m: 'בינוני', l: 'נמוך' };
+  return `<div class="recs-card" style="margin-bottom:20px">
+    <div class="recs-title">💡 ${recs.length} המלצות לשיפור</div>
+    ${recs.map(r => `<div class="rec"><span class="rec-pr pr-${r.pr}">${prHe[r.pr]}</span><span>${r.text}</span></div>`).join('')}
+  </div>`;
+}
+
+/* ── Category card ── */
+function renderCategoryCard(s) {
+  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות' };
+  let rows = '';
+  for (const [key, v] of Object.entries(s.categories)) {
+    const pct = Math.round((v.score / v.max) * 100);
+    rows += `<div class="row"><span class="row-label">${catNames[key] || key}</span><span class="row-value" style="color:${clr(pct)}">${v.score}/${v.max} (${pct}%)</span></div>`;
+  }
+  return `<div class="card"><div class="card-head"><div class="card-ico" style="background:var(--purple-bg);color:var(--purple)">📊</div><div class="card-title">ציונים לפי קטגוריה</div></div>${rows}</div>`;
+}
+
+/* ── Quick stats ── */
+function renderQuickStats(d) {
+  return `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--blue-bg);color:var(--blue)">📈</div><div class="card-title">סטטיסטיקות מהירות</div></div>
+    <div class="row"><span class="row-label">מילים בדף</span><span class="row-value">${d.content.wordCount}</span></div>
+    <div class="row"><span class="row-label">פסקאות</span><span class="row-value">${d.content.paragraphCount}</span></div>
+    <div class="row"><span class="row-label">תמונות</span><span class="row-value">${d.images.total} (${d.images.withoutAlt} ללא alt)</span></div>
+    <div class="row"><span class="row-label">קישורים</span><span class="row-value">${d.links.total} (${d.links.internal} פנימי, ${d.links.external} חיצוני)</span></div>
+    <div class="row"><span class="row-label">סקריפטים</span><span class="row-value">${d.performance.scripts.total}</span></div>
+    <div class="row"><span class="row-label">נתונים מובנים</span><span class="row-value">${d.structuredData.length ? d.structuredData.join(', ') : 'אין'}</span></div>
+  </div>`;
+}
+
+/* ── AI Panel ── */
+function renderAI(d) {
+  const ai = d.aiSignals;
+  const lvlHe = { low: 'נמוך', medium: 'בינוני', high: 'גבוה' };
+  const lvlCls = { low: 'badge-green', medium: 'badge-yellow', high: 'badge-red' };
+  const lvlStyle = { low: `background:var(--green-bg);color:var(--green)`, medium: `background:var(--yellow-bg);color:var(--yellow)`, high: `background:var(--red-bg);color:var(--red)` };
+  const icons = { content: '📝', structure: '🏗', meta: '🏷', widget: '💬', schema: '📊' };
+
+  let h = `<div class="ai-card">
+    <div class="ai-head">
+      <span style="font-size:1.3rem">🤖</span>
+      <span class="ai-title">אבחון תוכן בינה מלאכותית</span>
+      <span class="ai-level" style="${lvlStyle[ai.level]}">סיכון: ${lvlHe[ai.level]} (${ai.score}/100)</span>
+    </div>`;
+
+  if (!ai.signals.length) {
+    h += '<p style="color:var(--text2);padding:10px 0">לא זוהו סימנים משמעותיים לתוכן שנוצר על ידי AI.</p>';
+  } else {
+    for (const s of ai.signals) {
+      const sClr = s.severity === 'warning' ? `background:var(--yellow-bg);color:var(--yellow)` : `background:var(--blue-bg);color:var(--blue)`;
+      h += `<div class="signal">
+        <span class="signal-icon">${icons[s.type] || '🔍'}</span>
+        <span class="signal-text">${esc(s.label)}</span>
+        ${s.count ? `<span class="signal-ct">&times;${s.count}</span>` : ''}
+        <span class="signal-badge" style="${sClr}">${s.severity === 'warning' ? 'אזהרה' : 'מידע'}</span>
+      </div>`;
+    }
+  }
+
+  h += `<div style="margin-top:18px;padding:16px;background:rgba(255,255,255,.02);border-radius:10px">
+    <strong>מה המשמעות?</strong>
+    <p style="color:var(--text2);font-size:.88rem;margin-top:6px">
+      ${ai.level === 'low' ? 'התוכן לא מציג סימנים בולטים ליצירה אוטומטית. זה חיובי מבחינת SEO ואמינות.' :
+        ai.level === 'medium' ? 'נמצאו מספר דפוסים שעשויים להצביע על שימוש ב-AI. מומלץ לסקור את התוכן ולגוון את סגנון הכתיבה.' :
+        'זוהו סימנים משמעותיים ליצירת תוכן באמצעות AI. מנועי חיפוש עשויים להעניש תוכן זה. מומלץ לשכתב בצורה ייחודית ואנושית.'}
+    </p>
+  </div></div>`;
+  return h;
+}
+
+/* ── Meta & Content ── */
+function renderMeta(d) {
+  let h = '<div class="grid2">';
+
+  // Meta tags card
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--purple-bg);color:var(--purple)">🏷</div><div class="card-title">מטא תגיות</div></div>
+    <div class="row"><span class="row-label">כותרת</span><span class="row-value" dir="ltr">${esc(d.meta.title || '—')}</span></div>
+    <div class="row"><span class="row-label">אורך כותרת</span><span class="row-value">${(d.meta.title||'').length} תווים</span></div>
+    <div class="row"><span class="row-label">תיאור</span><span class="row-value" dir="ltr">${esc(trunc(d.meta.metaDescription, 70) || '—')}</span></div>
+    <div class="row"><span class="row-label">אורך תיאור</span><span class="row-value">${(d.meta.metaDescription||'').length} תווים</span></div>
+    <div class="row"><span class="row-label">Canonical</span><span class="row-value" dir="ltr">${esc(trunc(d.meta.canonical, 50) || '—')}</span></div>
+    <div class="row"><span class="row-label">Robots</span><span class="row-value" dir="ltr">${esc(d.meta.robots || '—')}</span></div>
+    <div class="row"><span class="row-label">שפה</span><span class="row-value">${esc(d.meta.lang || '—')}</span></div>
+    <div class="row"><span class="row-label">קידוד</span><span class="row-value" dir="ltr">${esc(d.meta.charset || '—')}</span></div>
+  </div>`;
+
+  // Headings card
+  let headRows = '';
+  for (let i = 1; i <= 6; i++) {
+    const hd = d.headings['h' + i];
+    if (hd.count) headRows += `<div class="row"><span class="row-label">H${i}</span><span class="row-value">${hd.count} — ${esc(trunc(hd.samples[0] || '', 45))}</span></div>`;
+  }
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--green-bg);color:var(--green)">📑</div><div class="card-title">מבנה כותרות</div></div>
+    ${headRows || '<p style="color:var(--text2);padding:8px 0">לא נמצאו כותרות</p>'}
+  </div>`;
+
+  // Images card
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--yellow-bg);color:var(--yellow)">🖼</div><div class="card-title">תמונות</div></div>
+    <div class="row"><span class="row-label">סה"כ</span><span class="row-value">${d.images.total}</span></div>
+    <div class="row"><span class="row-label">עם alt</span><span class="row-value" style="color:var(--green)">${d.images.withAlt}</span></div>
+    <div class="row"><span class="row-label">ללא alt</span><span class="row-value" style="color:${d.images.withoutAlt ? 'var(--red)' : 'var(--green)'}">${d.images.withoutAlt}</span></div>
+    <div class="row"><span class="row-label">Lazy loaded</span><span class="row-value">${d.images.lazy}</span></div>
+  </div>`;
+
+  // Links card
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--blue-bg);color:var(--blue)">🔗</div><div class="card-title">קישורים</div></div>
+    <div class="row"><span class="row-label">סה"כ</span><span class="row-value">${d.links.total}</span></div>
+    <div class="row"><span class="row-label">פנימיים</span><span class="row-value">${d.links.internal}</span></div>
+    <div class="row"><span class="row-label">חיצוניים</span><span class="row-value">${d.links.external}</span></div>
+    <div class="row"><span class="row-label">Nofollow</span><span class="row-value">${d.links.nofollow}</span></div>
+    <div class="row"><span class="row-label">שבורים (#)</span><span class="row-value" style="color:${d.links.broken ? 'var(--red)' : 'var(--green)'}">${d.links.broken}</span></div>
+  </div>`;
+
+  // OG card
+  const ogKeys = Object.keys(d.openGraph);
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--purple-bg);color:var(--purple)">📢</div><div class="card-title">Open Graph</div></div>
+    ${ogKeys.length ? ogKeys.map(k => `<div class="row"><span class="row-label">og:${k}</span><span class="row-value" dir="ltr">${esc(trunc(d.openGraph[k], 55))}</span></div>`).join('') : '<p style="color:var(--text2);padding:8px 0">לא נמצאו תגיות OG</p>'}
+  </div>`;
+
+  // Twitter card
+  const twKeys = Object.keys(d.twitterCard);
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--blue-bg);color:var(--blue)">🐦</div><div class="card-title">Twitter Card</div></div>
+    ${twKeys.length ? twKeys.map(k => `<div class="row"><span class="row-label">twitter:${k}</span><span class="row-value" dir="ltr">${esc(trunc(d.twitterCard[k], 55))}</span></div>`).join('') : '<p style="color:var(--text2);padding:8px 0">לא נמצאו תגיות Twitter</p>'}
+  </div>`;
+
+  h += '</div>';
+  return h;
+}
+
+/* ── Technical ── */
+function renderTechnical(d) {
+  let h = '<div class="grid2">';
+
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--green-bg);color:var(--green)">⚡</div><div class="card-title">ביצועים</div></div>
+    <div class="row"><span class="row-label">גודל HTML</span><span class="row-value">${d.performance.htmlSizeKB} KB</span></div>
+    <div class="row"><span class="row-label">זמן תגובה</span><span class="row-value">${d.performance.fetchTimeMs} ms</span></div>
+    <div class="row"><span class="row-label">סקריפטים חיצוניים</span><span class="row-value">${d.performance.scripts.external}</span></div>
+    <div class="row"><span class="row-label">סקריפטים פנימיים</span><span class="row-value">${d.performance.scripts.inline}</span></div>
+    <div class="row"><span class="row-label">גיליונות סגנון</span><span class="row-value">${d.performance.stylesheets.external}</span></div>
+    <div class="row"><span class="row-label">סגנון פנימי</span><span class="row-value">${d.performance.stylesheets.inline}</span></div>
+    <div class="row"><span class="row-label">iframes</span><span class="row-value">${d.performance.iframes}</span></div>
+  </div>`;
+
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--red-bg);color:var(--red)">🔒</div><div class="card-title">אבטחה</div></div>
+    <div class="row"><span class="row-label">HTTPS</span><span class="row-value" style="color:${d.security.isHttps ? 'var(--green)' : 'var(--red)'}">${d.security.isHttps ? 'כן' : 'לא'}</span></div>
+    <div class="row"><span class="row-label">HSTS</span><span class="row-value" style="color:${d.security.hsts ? 'var(--green)' : 'var(--red)'}">${d.security.hsts ? 'מופעל' : 'לא'}</span></div>
+    <div class="row"><span class="row-label">CSP</span><span class="row-value" style="color:${d.security.csp ? 'var(--green)' : 'var(--red)'}">${d.security.csp ? 'מוגדר' : 'לא'}</span></div>
+    <div class="row"><span class="row-label">X-Frame-Options</span><span class="row-value" dir="ltr">${esc(d.security.xFrameOptions || '—')}</span></div>
+    <div class="row"><span class="row-label">X-Content-Type</span><span class="row-value" style="color:${d.security.xContentType ? 'var(--green)' : 'var(--red)'}">${d.security.xContentType ? 'nosniff' : 'חסר'}</span></div>
+    <div class="row"><span class="row-label">Referrer Policy</span><span class="row-value" dir="ltr">${esc(d.security.referrerPolicy || '—')}</span></div>
+  </div>`;
+
+  // Accessibility
+  h += `<div class="card">
+    <div class="card-head"><div class="card-ico" style="background:var(--blue-bg);color:var(--blue)">♿</div><div class="card-title">נגישות (ציון: ${d.accessibility.score})</div></div>
+    ${d.accessibility.issues.length ? d.accessibility.issues.map(i =>
+      `<div class="signal"><span class="signal-icon">${i.severity === 'warning' ? '⚠️' : 'ℹ️'}</span><span class="signal-text">${esc(i.text)}</span></div>`
+    ).join('') : '<p style="color:var(--text2);padding:8px 0">לא נמצאו בעיות נגישות בסיסיות</p>'}
+  </div>`;
+
+  h += '</div>';
+  return h;
+}
+
+/* ── Checks ── */
+function renderChecks(d) {
+  const s = d.scores;
+  let h = `<div class="card"><div class="card-head"><div class="card-ico" style="background:var(--green-bg);color:var(--green)">✅</div><div class="card-title">כל הבדיקות (${s.total}/${s.max} נקודות — ${s.percentage}%)</div></div>`;
+
+  for (const c of s.checks) {
+    const pct = c.score / c.max;
+    const dotCls = pct >= 0.8 ? 'dot-pass' : pct > 0 ? 'dot-partial' : 'dot-fail';
+    h += `<div class="check">
+      <div class="check-dot ${dotCls}"></div>
+      <div class="check-info"><div class="check-name">${esc(c.name)}</div><div class="check-tip">${esc(c.tip)}</div></div>
+      <div class="check-pts" style="color:${clr(pct * 100)}">${c.score}/${c.max}</div>
+    </div>`;
+  }
+
+  h += '</div>';
+  return h;
+}
+
+/* ══════════════════════════════════════════
+   EXPORT FUNCTIONS
+   ══════════════════════════════════════════ */
+
+/* ── Download JSON ── */
+function downloadJSON() {
+  if (!_lastData) return;
+  const blob = new Blob([JSON.stringify(_lastData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const domain = new URL(_lastData.url).hostname.replace(/\./g, '_');
+  a.download = `seo-report-${domain}-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Copy text summary ── */
+function copyReport() {
+  if (!_lastData) return;
+  const d = _lastData;
+  const ai = d.aiSignals;
+  const lvlHe = { low: 'נמוך', medium: 'בינוני', high: 'גבוה' };
+
+  let txt = `דוח SEO — ${d.url}\n`;
+  txt += `תאריך: ${new Date().toLocaleDateString('he-IL')}\n`;
+  txt += `${'─'.repeat(40)}\n\n`;
+  txt += `ציון SEO כללי: ${d.scores.percentage}% (${d.scores.total}/${d.scores.max})\n`;
+  txt += `בריאות AI: ${Math.max(0, 100 - ai.score)}% | רמת סיכון: ${lvlHe[ai.level]}\n`;
+  txt += `אבטחה: ${d.security.isHttps ? 'HTTPS' : 'חסר HTTPS'}\n`;
+  txt += `נגישות: ${d.accessibility.score}%\n\n`;
+
+  txt += `סטטיסטיקות:\n`;
+  txt += `  מילים: ${d.content.wordCount} | פסקאות: ${d.content.paragraphCount}\n`;
+  txt += `  תמונות: ${d.images.total} (${d.images.withoutAlt} ללא alt)\n`;
+  txt += `  קישורים: ${d.links.total} (${d.links.internal} פנימי, ${d.links.external} חיצוני)\n\n`;
+
+  txt += `בדיקות:\n`;
+  for (const c of d.scores.checks) {
+    const icon = c.score === c.max ? '+' : c.score === 0 ? '!' : '~';
+    txt += `  [${icon}] ${c.name}: ${c.tip} (${c.score}/${c.max})\n`;
+  }
+
+  if (ai.signals.length) {
+    txt += `\nסימני AI:\n`;
+    for (const s of ai.signals) {
+      txt += `  - ${s.label}${s.count ? ` (x${s.count})` : ''}\n`;
+    }
+  }
+
+  txt += `\n${'─'.repeat(40)}\nנוצר ע"י SEO AI Analyzer`;
+
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.querySelector('[onclick="copyReport()"]');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg> הועתק!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+  });
+}
+
+/* ── Generate PDF Report (print-ready HTML) ── */
+function generateReport() {
+  if (!_lastData) return;
+  const d = _lastData;
+  const s = d.scores;
+  const ai = d.aiSignals;
+  const aiHealth = Math.max(0, 100 - ai.score);
+  const secPct = d.security.isHttps ? (d.security.hsts ? 95 : 65) : 15;
+  const accPct = d.accessibility.score;
+  const lvlHe = { low: 'נמוך', medium: 'בינוני', high: 'גבוה' };
+  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות' };
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+  function pClr(p) { return p >= 75 ? '#10b981' : p >= 45 ? '#f59e0b' : '#ef4444'; }
+  function pBg(p) { return p >= 75 ? '#ecfdf5' : p >= 45 ? '#fffbeb' : '#fef2f2'; }
+
+  function svgRing(pct, label, sub, size = 90) {
+    const c = pClr(pct);
+    const r = size * 0.38;
+    const circ = 2 * Math.PI * r;
+    const off = circ - (pct / 100) * circ;
+    return `<div style="text-align:center;flex:1;min-width:120px">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg)">
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="5"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/>
+      </svg>
+      <div style="margin-top:-${size*0.62}px;margin-bottom:${size*0.22}px;font-size:${size*0.22}px;font-weight:800;color:${c}">${pct}%</div>
+      <div style="font-weight:700;font-size:11px;margin-top:4px">${label}</div>
+      <div style="font-size:10px;color:#6b7280">${sub}</div>
+    </div>`;
+  }
+
+  let checksHtml = '';
+  for (const c of s.checks) {
+    const pct = c.score / c.max;
+    const dotColor = pct >= 0.8 ? '#10b981' : pct > 0 ? '#f59e0b' : '#ef4444';
+    checksHtml += `<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};margin-left:6px"></span> ${esc(c.name)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#6b7280;font-size:12px">${esc(c.tip)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:700;color:${dotColor};text-align:center;direction:ltr">${c.score}/${c.max}</td>
+    </tr>`;
+  }
+
+  let recsHtml = '';
+  const recs = [];
+  for (const c of s.checks) {
+    if (c.score < c.max) {
+      const pr = c.score === 0 ? 'high' : (c.score / c.max) < 0.6 ? 'medium' : 'low';
+      recs.push({ pr, name: c.name, tip: c.tip });
+    }
+  }
+  if (ai.level === 'high') recs.unshift({ pr: 'high', name: 'תוכן AI', tip: 'זוהו סימנים משמעותיים לתוכן AI — שכתב בצורה ייחודית' });
+  else if (ai.level === 'medium') recs.push({ pr: 'medium', name: 'תוכן AI', tip: 'נמצאו סימנים — סקור וגוון את הכתיבה' });
+  recs.sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.pr] - { high: 0, medium: 1, low: 2 }[b.pr]));
+
+  const prColors = { high: { bg: '#fef2f2', c: '#ef4444', label: 'קריטי' }, medium: { bg: '#fffbeb', c: '#f59e0b', label: 'בינוני' }, low: { bg: '#eff6ff', c: '#3b82f6', label: 'נמוך' } };
+  for (const r of recs) {
+    const p = prColors[r.pr];
+    recsHtml += `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:${p.bg};border-radius:8px;margin-bottom:5px;font-size:12px">
+      <span style="background:${p.c};color:#fff;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap;margin-top:1px">${p.label}</span>
+      <span><strong>${esc(r.name)}:</strong> ${esc(r.tip)}</span>
+    </div>`;
+  }
+
+  let aiSignalsHtml = '';
+  if (ai.signals.length) {
+    for (const sig of ai.signals) {
+      const sigBg = sig.severity === 'warning' ? '#fffbeb' : '#eff6ff';
+      const sigC = sig.severity === 'warning' ? '#f59e0b' : '#3b82f6';
+      aiSignalsHtml += `<div style="display:flex;gap:8px;align-items:center;padding:6px 10px;background:${sigBg};border-radius:6px;margin-bottom:4px;font-size:12px">
+        <span style="flex:1">${esc(sig.label)}</span>
+        ${sig.count ? `<span style="color:#9ca3af;font-size:11px">x${sig.count}</span>` : ''}
+        <span style="color:${sigC};font-size:10px;font-weight:600">${sig.severity === 'warning' ? 'אזהרה' : 'מידע'}</span>
+      </div>`;
+    }
+  } else {
+    aiSignalsHtml = '<p style="color:#6b7280;font-size:12px;padding:8px 0">לא זוהו סימנים משמעותיים לתוכן AI.</p>';
+  }
+
+  let catHtml = '';
+  for (const [key, v] of Object.entries(s.categories)) {
+    const pct = Math.round((v.score / v.max) * 100);
+    catHtml += `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
+      <span>${catNames[key] || key}</span>
+      <span style="font-weight:700;color:${pClr(pct)}">${v.score}/${v.max} (${pct}%)</span>
+    </div>`;
+  }
+
+  const reportHTML = `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>דוח SEO — ${esc(new URL(d.url).hostname)}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Heebo', sans-serif; color: #1f2937; line-height: 1.6; background: #fff; padding: 0; }
+    @page { size: A4; margin: 15mm 12mm; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+      .no-print { display: none; }
+    }
+    .header { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; padding: 28px 32px; border-radius: 0 0 16px 16px; margin-bottom: 24px; }
+    .header h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .header-meta { display: flex; gap: 16px; font-size: 12px; opacity: .85; flex-wrap: wrap; }
+    .section { margin-bottom: 22px; padding: 0 8px; }
+    .section-title { font-size: 15px; font-weight: 700; color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .scores-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; padding: 16px; background: #fafafa; border-radius: 12px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .info-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; }
+    .info-box h3 { font-size: 12px; font-weight: 700; color: #6366f1; margin-bottom: 8px; }
+    .info-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; }
+    .info-row:last-child { border: none; }
+    .info-row .label { color: #6b7280; }
+    .info-row .val { font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table th { text-align: right; padding: 8px 10px; background: #f9fafb; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #6b7280; font-size: 11px; }
+    .footer-report { text-align: center; padding: 16px; color: #9ca3af; font-size: 11px; border-top: 1px solid #e5e7eb; margin-top: 20px; }
+    .print-bar { position: fixed; top: 0; left: 0; right: 0; background: #4f46e5; color: #fff; padding: 10px 20px; display: flex; justify-content: center; gap: 12px; z-index: 999; }
+    .print-bar button { padding: 8px 24px; border: 2px solid #fff; background: transparent; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .print-bar button:hover { background: rgba(255,255,255,.15); }
+    .print-bar button.primary { background: #fff; color: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <button class="primary" onclick="window.print()">הדפס / שמור כ-PDF</button>
+    <button onclick="window.close()">סגור</button>
+  </div>
+
+  <div style="padding-top:50px">
+  <div class="header">
+    <h1>דוח ניתוח SEO ואבחון AI</h1>
+    <div class="header-meta">
+      <span>אתר: ${esc(d.url)}</span>
+      <span>תאריך: ${dateStr} ${timeStr}</span>
+      <span>סטטוס: ${d.statusCode}</span>
+      <span>זמן תגובה: ${d.fetchTime}ms</span>
+    </div>
+  </div>
+
+  <!-- Scores -->
+  <div class="section">
+    <div class="scores-row">
+      ${svgRing(s.percentage, 'ציון SEO', gradeHe(s.percentage))}
+      ${svgRing(aiHealth, 'בריאות AI', lvlHe[ai.level])}
+      ${svgRing(secPct, 'אבטחה', d.security.isHttps ? 'HTTPS' : 'חסר')}
+      ${svgRing(accPct, 'נגישות', accPct >= 80 ? 'טוב' : accPct >= 50 ? 'בינוני' : 'חלש')}
+    </div>
+  </div>
+
+  <!-- Recommendations -->
+  ${recs.length ? `<div class="section">
+    <div class="section-title">💡 המלצות לשיפור (${recs.length})</div>
+    ${recsHtml}
+  </div>` : ''}
+
+  <!-- Category scores + Quick stats -->
+  <div class="section">
+    <div class="info-grid">
+      <div class="info-box">
+        <h3>ציונים לפי קטגוריה</h3>
+        ${catHtml}
+      </div>
+      <div class="info-box">
+        <h3>סטטיסטיקות</h3>
+        <div class="info-row"><span class="label">מילים</span><span class="val">${d.content.wordCount}</span></div>
+        <div class="info-row"><span class="label">פסקאות</span><span class="val">${d.content.paragraphCount}</span></div>
+        <div class="info-row"><span class="label">תמונות</span><span class="val">${d.images.total} (${d.images.withoutAlt} ללא alt)</span></div>
+        <div class="info-row"><span class="label">קישורים</span><span class="val">${d.links.total} (${d.links.internal} פנימי, ${d.links.external} חיצוני)</span></div>
+        <div class="info-row"><span class="label">גודל HTML</span><span class="val">${d.performance.htmlSizeKB} KB</span></div>
+        <div class="info-row"><span class="label">נתונים מובנים</span><span class="val">${d.structuredData.length ? d.structuredData.join(', ') : 'אין'}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Diagnostics -->
+  <div class="section">
+    <div class="section-title">🤖 אבחון תוכן בינה מלאכותית — רמת סיכון: <span style="color:${pClr(aiHealth)};margin-right:4px">${lvlHe[ai.level]} (${ai.score}/100)</span></div>
+    ${aiSignalsHtml}
+  </div>
+
+  <!-- Meta info -->
+  <div class="section">
+    <div class="info-grid">
+      <div class="info-box">
+        <h3>מטא תגיות</h3>
+        <div class="info-row"><span class="label">כותרת</span><span class="val" dir="ltr">${esc(d.meta.title || '—')}</span></div>
+        <div class="info-row"><span class="label">אורך כותרת</span><span class="val">${(d.meta.title||'').length} תווים</span></div>
+        <div class="info-row"><span class="label">תיאור</span><span class="val" dir="ltr">${esc(trunc(d.meta.metaDescription, 60) || '—')}</span></div>
+        <div class="info-row"><span class="label">אורך תיאור</span><span class="val">${(d.meta.metaDescription||'').length} תווים</span></div>
+        <div class="info-row"><span class="label">Canonical</span><span class="val" dir="ltr">${esc(trunc(d.meta.canonical, 45) || '—')}</span></div>
+        <div class="info-row"><span class="label">שפה</span><span class="val">${d.meta.lang || '—'}</span></div>
+      </div>
+      <div class="info-box">
+        <h3>אבטחה וטכני</h3>
+        <div class="info-row"><span class="label">HTTPS</span><span class="val" style="color:${d.security.isHttps ? '#10b981' : '#ef4444'}">${d.security.isHttps ? 'כן' : 'לא'}</span></div>
+        <div class="info-row"><span class="label">HSTS</span><span class="val" style="color:${d.security.hsts ? '#10b981' : '#ef4444'}">${d.security.hsts ? 'מופעל' : 'לא'}</span></div>
+        <div class="info-row"><span class="label">CSP</span><span class="val" style="color:${d.security.csp ? '#10b981' : '#ef4444'}">${d.security.csp ? 'מוגדר' : 'לא'}</span></div>
+        <div class="info-row"><span class="label">X-Frame-Options</span><span class="val" dir="ltr">${esc(d.security.xFrameOptions || '—')}</span></div>
+        <div class="info-row"><span class="label">Viewport</span><span class="val">${d.meta.viewport ? 'מוגדר' : 'חסר'}</span></div>
+        <div class="info-row"><span class="label">קידוד</span><span class="val" dir="ltr">${d.meta.charset || '—'}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Checks table -->
+  <div class="section page-break">
+    <div class="section-title">✅ כל הבדיקות (${s.total}/${s.max} — ${s.percentage}%)</div>
+    <table>
+      <thead><tr><th>בדיקה</th><th>פירוט</th><th style="text-align:center">ציון</th></tr></thead>
+      <tbody>${checksHtml}</tbody>
+    </table>
+  </div>
+
+  <div class="footer-report">
+    דוח זה נוצר אוטומטית ע"י SEO AI Analyzer | ${dateStr}
+  </div>
+  </div>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(reportHTML);
+  w.document.close();
+}
+</script>
+</body>
+</html>
