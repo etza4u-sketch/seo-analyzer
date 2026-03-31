@@ -509,6 +509,111 @@
     .insight-example { background: rgba(99,102,241,.06); border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: .85rem; border-right: 3px solid var(--primary); }
     .insight-example code { background: rgba(0,0,0,.3); padding: 1px 6px; border-radius: 4px; font-size: .82rem; direction: ltr; display: inline; }
 
+    /* ── AI Advisor ── */
+    .advisor-section { margin-bottom: 24px; }
+    .advisor-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(168,85,247,.08));
+      border: 1px solid rgba(99,102,241,.15);
+      border-radius: var(--radius);
+    }
+
+    .advisor-header-icon { font-size: 1.5rem; }
+    .advisor-header-text { flex: 1; }
+    .advisor-header-title { font-weight: 800; font-size: 1.1rem; }
+    .advisor-header-sub { color: var(--text2); font-size: .85rem; }
+
+    .advisor-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .advisor-card:hover { border-color: rgba(99,102,241,.25); }
+
+    .advisor-card-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .advisor-card-head:hover { background: rgba(255,255,255,.02); }
+
+    .advisor-arrow {
+      width: 20px;
+      height: 20px;
+      transition: transform .3s;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .advisor-card.open .advisor-arrow { transform: rotate(180deg); }
+
+    .advisor-card-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .advisor-card-title { font-weight: 700; font-size: .92rem; flex: 1; }
+    .advisor-card-score { font-weight: 700; font-size: .85rem; direction: ltr; }
+
+    .advisor-card-body {
+      display: none;
+      padding: 0 18px 18px;
+      font-size: .88rem;
+      line-height: 1.8;
+    }
+
+    .advisor-card.open .advisor-card-body { display: block; }
+
+    .advisor-explain { color: var(--text2); margin-bottom: 10px; }
+    .advisor-explain strong { color: var(--text); }
+
+    .advisor-code {
+      background: rgba(99,102,241,.06);
+      border-right: 3px solid var(--primary);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      font-size: .84rem;
+      direction: ltr;
+      text-align: left;
+    }
+
+    .advisor-code code {
+      background: rgba(0,0,0,.3);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: .82rem;
+      direction: ltr;
+    }
+
+    .advisor-good {
+      background: var(--green-bg);
+      border-right: 3px solid var(--green);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .84rem;
+    }
+
+    .advisor-good strong { color: var(--green); }
+
     /* ── Footer ── */
     .footer { text-align: center; padding: 32px 20px; color: var(--text3); font-size: .85rem; border-top: 1px solid var(--border); }
     .footer a { color: var(--primary); text-decoration: none; }
@@ -751,26 +856,251 @@ function ring(pct, label, sub) {
   </div>`;
 }
 
-/* ── Recommendations ── */
+/* ── AI Advisor ── */
 function renderRecs(d) {
-  const recs = [];
-  for (const c of d.scores.checks) {
-    if (c.score < c.max) {
-      const pr = c.score === 0 ? 'h' : (c.score / c.max) < 0.6 ? 'm' : 'l';
-      recs.push({ pr, text: `<strong>${c.name}:</strong> ${c.tip}` });
+  const guides = getAIGuides(d);
+  const failing = guides.filter(g => g.score < g.max);
+  const passing = guides.filter(g => g.score >= g.max);
+
+  if (!failing.length && !passing.length) return '';
+
+  let h = `<div class="advisor-section">
+    <div class="advisor-header">
+      <span class="advisor-header-icon">🧠</span>
+      <div class="advisor-header-text">
+        <div class="advisor-header-title">יועץ AI — ${failing.length ? `${failing.length} סעיפים לשיפור` : 'הכל תקין!'}</div>
+        <div class="advisor-header-sub">${failing.length ? 'לחץ על כל סעיף לקבלת הסבר מפורט, דוגמאות קוד וטיפים לתיקון' : 'האתר שלך עומד בכל הבדיקות. כל הכבוד!'}</div>
+      </div>
+      <span style="font-size:.85rem;color:var(--text2)">${d.scores.percentage}%</span>
+    </div>`;
+
+  for (const g of failing) {
+    const pct = g.score / g.max;
+    const dotC = pct === 0 ? 'var(--red)' : 'var(--yellow)';
+    const prLabel = pct === 0 ? 'קריטי' : pct < 0.6 ? 'בינוני' : 'נמוך';
+    const prBg = pct === 0 ? 'var(--red-bg)' : pct < 0.6 ? 'var(--yellow-bg)' : 'var(--blue-bg)';
+    const prC = pct === 0 ? 'var(--red)' : pct < 0.6 ? 'var(--yellow)' : 'var(--blue)';
+
+    h += `<div class="advisor-card" onclick="this.classList.toggle('open')">
+      <div class="advisor-card-head">
+        <svg class="advisor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="advisor-card-icon" style="background:${prBg};color:${prC}">${g.icon}</div>
+        <span class="advisor-card-title">${g.name}</span>
+        <span class="insight-tag" style="background:${prBg};color:${prC}">${prLabel}</span>
+        <span class="advisor-card-score" style="color:${dotC}">${g.score}/${g.max}</span>
+      </div>
+      <div class="advisor-card-body">
+        <div class="advisor-explain">${g.explain}</div>
+        <div class="advisor-code">${g.example}</div>
+        ${g.currentIssue ? `<div style="margin-bottom:10px;font-size:.85rem"><strong style="color:var(--red)">הבעיה שלך:</strong> ${g.currentIssue}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (passing.length) {
+    h += `<div style="margin-top:14px;margin-bottom:6px;font-size:.9rem;font-weight:600;color:var(--text2)">✅ ${passing.length} סעיפים תקינים</div>`;
+    for (const g of passing) {
+      h += `<div class="advisor-card" onclick="this.classList.toggle('open')">
+        <div class="advisor-card-head">
+          <svg class="advisor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <div class="advisor-card-icon" style="background:var(--green-bg);color:var(--green)">${g.icon}</div>
+          <span class="advisor-card-title">${g.name}</span>
+          <span class="advisor-card-score" style="color:var(--green)">${g.score}/${g.max}</span>
+        </div>
+        <div class="advisor-card-body">
+          <div class="advisor-good"><strong>מצוין!</strong> ${g.passTip}</div>
+        </div>
+      </div>`;
     }
   }
-  if (d.aiSignals.level === 'high') recs.unshift({ pr: 'h', text: '<strong>תוכן AI:</strong> זוהו סימנים משמעותיים לתוכן שנוצר ע"י AI — שכתב תוכן בצורה ייחודית' });
-  else if (d.aiSignals.level === 'medium') recs.push({ pr: 'm', text: '<strong>תוכן AI:</strong> נמצאו מספר סימנים — סקור וגוון את הכתיבה' });
 
-  recs.sort((a, b) => ({ h: 0, m: 1, l: 2 }[a.pr] - { h: 0, m: 1, l: 2 }[b.pr]));
-  if (!recs.length) return '';
+  h += '</div>';
+  return h;
+}
 
-  const prHe = { h: 'קריטי', m: 'בינוני', l: 'נמוך' };
-  return `<div class="recs-card" style="margin-bottom:20px">
-    <div class="recs-title">💡 ${recs.length} המלצות לשיפור</div>
-    ${recs.map(r => `<div class="rec"><span class="rec-pr pr-${r.pr}">${prHe[r.pr]}</span><span>${r.text}</span></div>`).join('')}
-  </div>`;
+function getAIGuides(d) {
+  const m = d.meta;
+  const guides = [];
+
+  // Title
+  guides.push({
+    name: 'תגית כותרת (Title)', icon: '🏷',
+    score: d.scores.checks.find(c => c.name === 'תגית כותרת')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'תגית כותרת')?.max ?? 10,
+    explain: `<strong>למה זה חשוב:</strong> תגית ה-Title היא הדבר הראשון שגוגל ומשתמשים רואים בתוצאות החיפוש. כותרת טובה צריכה להיות 30-60 תווים, לכלול מילת מפתח ראשית ולעודד לחיצה.`,
+    example: `<strong>דוגמה נכונה:</strong><br><code>&lt;title&gt;שירותי SEO מקצועיים | קידום אתרים בגוגל - שם החברה&lt;/title&gt;</code><br><br><strong>דוגמה שגויה:</strong><br><code>&lt;title&gt;דף הבית&lt;/title&gt;</code>`,
+    currentIssue: !m.title ? 'אין תגית title בכלל!' : m.title.length < 30 ? `הכותרת קצרה מדי: "${esc(m.title)}" (${m.title.length} תווים)` : m.title.length > 60 ? `הכותרת ארוכה מדי: "${esc(m.title.substring(0,50))}..." (${m.title.length} תווים)` : '',
+    passTip: `הכותרת "${esc(m.title)}" באורך תקין (${(m.title||'').length} תווים). וודא שהיא כוללת מילת מפתח ראשית.`,
+  });
+
+  // Description
+  guides.push({
+    name: 'תיאור מטא (Description)', icon: '📝',
+    score: d.scores.checks.find(c => c.name === 'תיאור מטא')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'תיאור מטא')?.max ?? 10,
+    explain: `<strong>למה זה חשוב:</strong> ה-Meta Description מופיע מתחת לכותרת בגוגל. תיאור טוב (120-160 תווים) מגדיל CTR בעד 30%. הוא צריך לכלול מילות מפתח, ערך ייחודי וקריאה לפעולה.`,
+    example: `<strong>דוגמה נכונה:</strong><br><code>&lt;meta name="description" content="שירותי קידום אתרים מקצועיים עם תוצאות מוכחות. למעלה מ-500 לקוחות מרוצים. קבל ייעוץ חינם היום!"&gt;</code><br><br><strong>דוגמה שגויה:</strong><br><code>&lt;meta name="description" content="ברוכים הבאים לאתר שלנו"&gt;</code>`,
+    currentIssue: !m.metaDescription ? 'אין meta description בכלל! גוגל ייצור תיאור אוטומטי (לא אופטימלי).' : m.metaDescription.length < 120 ? `התיאור קצר מדי (${m.metaDescription.length} תווים)` : m.metaDescription.length > 160 ? `התיאור ארוך מדי (${m.metaDescription.length} תווים) — ייחתך בתוצאות` : '',
+    passTip: `תיאור באורך אופטימלי (${(m.metaDescription||'').length} תווים). וודא שכולל קריאה לפעולה.`,
+  });
+
+  // Canonical
+  guides.push({
+    name: 'כתובת קנונית (Canonical)', icon: '🔗',
+    score: d.scores.checks.find(c => c.name === 'כתובת קנונית')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'כתובת קנונית')?.max ?? 8,
+    explain: `<strong>למה זה חשוב:</strong> Canonical URL מגן מפני תוכן כפול. בלעדיו, גוגל עלול לאנדקס גרסאות שונות של אותו דף (עם www ובלי, עם פרמטרים וכו').`,
+    example: `<strong>דוגמה נכונה:</strong><br><code>&lt;link rel="canonical" href="https://example.com/page"&gt;</code><br><br><strong>למה?</strong> אם יש גישה גם דרך <code>example.com/page</code> וגם <code>example.com/page?ref=fb</code>, ה-canonical אומר לגוגל איזה גרסה היא הראשית.`,
+    currentIssue: !m.canonical ? 'אין canonical URL — גוגל עלול לאנדקס גרסאות כפולות של הדף.' : '',
+    passTip: `Canonical מוגדר ל: ${esc(m.canonical || '')}`,
+  });
+
+  // Viewport
+  guides.push({
+    name: 'תגית Viewport', icon: '📱',
+    score: d.scores.checks.find(c => c.name === 'תגית Viewport')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'תגית Viewport')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> Viewport מבטיח שהאתר מוצג נכון במובייל. גוגל משתמש ב-Mobile-First Indexing — בלי viewport, האתר ידורג נמוך יותר.`,
+    example: `<strong>הוסף בתוך &lt;head&gt;:</strong><br><code>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</code>`,
+    currentIssue: !m.viewport ? 'אין viewport — האתר כנראה לא מותאם למובייל!' : '',
+    passTip: 'Viewport מוגדר כנדרש — האתר מותאם למובייל.',
+  });
+
+  // Language
+  guides.push({
+    name: 'שפת הדף (lang)', icon: '🌐',
+    score: d.scores.checks.find(c => c.name === 'שפת הדף')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'שפת הדף')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> תגית lang עוזרת לגוגל להבין את שפת הדף, ולקוראי מסך להשמיע תוכן בהגייה הנכונה. חיוני לנגישות ול-SEO בינלאומי.`,
+    example: `<strong>דוגמה לעברית:</strong><br><code>&lt;html lang="he" dir="rtl"&gt;</code><br><br><strong>דוגמה לאנגלית:</strong><br><code>&lt;html lang="en"&gt;</code>`,
+    currentIssue: !m.lang ? 'חסר lang attribute — גוגל לא יודע בוודאות מה שפת הדף.' : '',
+    passTip: `שפה מוגדרת: ${m.lang}`,
+  });
+
+  // HTTPS
+  guides.push({
+    name: 'HTTPS', icon: '🔒',
+    score: d.scores.checks.find(c => c.name === 'HTTPS')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'HTTPS')?.max ?? 10,
+    explain: `<strong>למה זה חשוב:</strong> HTTPS הוא גורם דירוג רשמי של גוגל מ-2014. אתרים בלי HTTPS מוצגים עם אזהרת "לא מאובטח" בדפדפן, מה שמפחית אמון משתמשים ו-CTR.`,
+    example: `<strong>איך לתקן:</strong><br>1. רכוש/התקן תעודת SSL (חינם ב-<code>Let's Encrypt</code>)<br>2. הגדר הפניה 301 מ-HTTP ל-HTTPS<br>3. עדכן את כל הקישורים הפנימיים ל-HTTPS<br><br><code>RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]</code>`,
+    currentIssue: !d.security.isHttps ? 'האתר לא משתמש ב-HTTPS — זה פוגע בדירוג ובאמון!' : '',
+    passTip: 'האתר מאובטח עם HTTPS — מצוין לדירוג ולאמון משתמשים.',
+  });
+
+  // H1
+  guides.push({
+    name: 'כותרת H1', icon: '📑',
+    score: d.scores.checks.find(c => c.name === 'כותרת H1')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'כותרת H1')?.max ?? 10,
+    explain: `<strong>למה זה חשוב:</strong> H1 היא הכותרת הראשית של הדף. חייב להיות בדיוק H1 אחד בכל דף. הוא צריך לכלול את מילת המפתח הראשית ולתאר את תוכן הדף.`,
+    example: `<strong>דוגמה נכונה:</strong><br><code>&lt;h1&gt;שירותי קידום אתרים מקצועיים בישראל&lt;/h1&gt;</code><br><br><strong>מבנה נכון:</strong><br><code>H1 → H2 → H3</code> (היררכיה ברורה, לא לדלג על רמות)`,
+    currentIssue: d.headings.h1.count === 0 ? 'אין H1 בכלל! גוגל לא יודע מה הנושא המרכזי.' : d.headings.h1.count > 1 ? `${d.headings.h1.count} תגיות H1 — צריך רק אחת. H1 נוכחיים: "${d.headings.h1.samples.map(s => esc(s.substring(0,40))).join('", "')}"` : '',
+    passTip: `H1 יחיד כנדרש: "${esc((d.headings.h1.samples[0]||'').substring(0,60))}"`,
+  });
+
+  // Images alt
+  guides.push({
+    name: 'טקסט חלופי לתמונות (Alt)', icon: '🖼',
+    score: d.scores.checks.find(c => c.name === 'טקסט חלופי לתמונות')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'טקסט חלופי לתמונות')?.max ?? 8,
+    explain: `<strong>למה זה חשוב:</strong> Alt text עוזר לגוגל להבין תמונות (SEO תמונות), משפר נגישות לעיוורים, ומוצג כשתמונה לא נטענת. כל תמונה חייבת alt תיאורי.`,
+    example: `<strong>דוגמה נכונה:</strong><br><code>&lt;img src="team.jpg" alt="צוות המפתחים שלנו בפגישת סיעור מוחות"&gt;</code><br><br><strong>דוגמה שגויה:</strong><br><code>&lt;img src="team.jpg" alt="תמונה"&gt;</code><br><code>&lt;img src="team.jpg"&gt;</code> (בלי alt בכלל)`,
+    currentIssue: d.images.withoutAlt > 0 ? `${d.images.withoutAlt} מתוך ${d.images.total} תמונות ללא alt text.${d.images.samples.length ? ' דוגמאות: ' + d.images.samples.slice(0,2).map(s => '<code>' + esc(s.substring(0,50)) + '</code>').join(', ') : ''}` : '',
+    passTip: d.images.total === 0 ? 'אין תמונות בדף.' : `כל ${d.images.total} התמונות כוללות טקסט חלופי.`,
+  });
+
+  // Structured data
+  guides.push({
+    name: 'נתונים מובנים (Schema)', icon: '📊',
+    score: d.scores.checks.find(c => c.name === 'נתונים מובנים')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'נתונים מובנים')?.max ?? 7,
+    explain: `<strong>למה זה חשוב:</strong> Schema Markup (JSON-LD) עוזר לגוגל להציג Rich Snippets — כוכבי דירוג, מחירים, FAQ וכו'. זה מגדיל CTR בעד 30% ומשפר נראות בתוצאות.`,
+    example: `<strong>דוגמה — עסק מקומי:</strong><br><code>&lt;script type="application/ld+json"&gt;<br>{<br>  "@context": "https://schema.org",<br>  "@type": "LocalBusiness",<br>  "name": "שם העסק",<br>  "url": "https://example.com",<br>  "telephone": "+972-XX-XXX-XXXX",<br>  "address": { "@type": "PostalAddress", "addressLocality": "תל אביב" }<br>}<br>&lt;/script&gt;</code><br><br><strong>סוגים נפוצים:</strong> Organization, LocalBusiness, Article, FAQ, Product, BreadcrumbList`,
+    currentIssue: d.structuredData.length === 0 ? 'אין Schema בכלל — מפסידים Rich Snippets בגוגל!' : '',
+    passTip: `נמצאו נתונים מובנים: ${d.structuredData.join(', ')}`,
+  });
+
+  // Open Graph
+  guides.push({
+    name: 'תגיות Open Graph', icon: '📢',
+    score: d.scores.checks.find(c => c.name === 'תגיות Open Graph')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'תגיות Open Graph')?.max ?? 7,
+    explain: `<strong>למה זה חשוב:</strong> Open Graph שולט באיך הקישור שלך נראה כשמשתפים אותו בפייסבוק, לינקדאין, וואטסאפ ועוד. בלי OG, הרשתות ייצרו תצוגה מכוערת.`,
+    example: `<strong>תגיות חובה:</strong><br><code>&lt;meta property="og:title" content="כותרת הדף"&gt;</code><br><code>&lt;meta property="og:description" content="תיאור קצר"&gt;</code><br><code>&lt;meta property="og:image" content="https://example.com/image.jpg"&gt;</code><br><code>&lt;meta property="og:url" content="https://example.com/page"&gt;</code><br><code>&lt;meta property="og:type" content="website"&gt;</code><br><br><strong>טיפ:</strong> תמונת OG מומלצת: 1200x630 פיקסלים`,
+    currentIssue: Object.keys(d.openGraph).length < 3 ? `רק ${Object.keys(d.openGraph).length} תגיות OG — צריך לפחות 4 (title, description, image, url).` : '',
+    passTip: `${Object.keys(d.openGraph).length} תגיות OG מוגדרות — שיתוף ברשתות חברתיות ייראה טוב.`,
+  });
+
+  // Twitter Card
+  guides.push({
+    name: 'תגיות Twitter Card', icon: '🐦',
+    score: d.scores.checks.find(c => c.name === 'תגיות Twitter Card')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'תגיות Twitter Card')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> Twitter Card שולט בתצוגת הקישורים בטוויטר/X. כרטיס יפה עם תמונה גדולה מושך יותר לחיצות.`,
+    example: `<strong>הוסף:</strong><br><code>&lt;meta name="twitter:card" content="summary_large_image"&gt;</code><br><code>&lt;meta name="twitter:title" content="כותרת"&gt;</code><br><code>&lt;meta name="twitter:description" content="תיאור"&gt;</code><br><code>&lt;meta name="twitter:image" content="https://example.com/image.jpg"&gt;</code>`,
+    currentIssue: Object.keys(d.twitterCard).length === 0 ? 'אין תגיות Twitter Card — קישורים בטוויטר ייראו בסיסיים.' : '',
+    passTip: `${Object.keys(d.twitterCard).length} תגיות Twitter Card מוגדרות.`,
+  });
+
+  // HTML size
+  guides.push({
+    name: 'גודל HTML', icon: '⚡',
+    score: d.scores.checks.find(c => c.name === 'גודל HTML')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'גודל HTML')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> HTML כבד מאט את טעינת הדף. גוגל מעדיף דפים שנטענים מהר. HTML מעל 100KB נחשב כבד.`,
+    example: `<strong>איך להקטין:</strong><br>1. <code>Minify</code> — הסר רווחים ושורות ריקות מ-HTML<br>2. הסר CSS ו-JS פנימי שלא בשימוש<br>3. השתמש ב-<code>gzip</code> compression בשרת<br>4. העבר סקריפטים לקבצים חיצוניים<br><br><strong>כלי:</strong> HTMLMinifier, PageSpeed Insights`,
+    currentIssue: d.performance.htmlSizeKB > 100 ? `HTML כבד: ${d.performance.htmlSizeKB}KB (מומלץ מתחת ל-100KB)` : '',
+    passTip: `גודל HTML תקין: ${d.performance.htmlSizeKB}KB`,
+  });
+
+  // Word count
+  guides.push({
+    name: 'כמות תוכן', icon: '📄',
+    score: d.scores.checks.find(c => c.name === 'כמות תוכן')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'כמות תוכן')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> גוגל מעדיף תוכן מעמיק ואיכותי. דפים עם פחות מ-300 מילים נחשבים "דקים" ונוטים לדרג נמוך. לדפי תוכן מרכזיים מומלץ 1000+ מילים.`,
+    example: `<strong>מה לעשות:</strong><br>1. הוסף פסקאות תוכן ייחודי ומקורי<br>2. ענה על שאלות נפוצות (FAQ)<br>3. הוסף סקציית "איך זה עובד", "למה אנחנו"<br>4. <strong>חשוב:</strong> אל תמלא טקסט סתם — תוכן אמיתי שעוזר למשתמשים`,
+    currentIssue: d.content.wordCount < 100 ? `רק ${d.content.wordCount} מילים — דף כמעט ריק.` : d.content.wordCount < 300 ? `${d.content.wordCount} מילים — תוכן "דק". מומלץ לפחות 300.` : '',
+    passTip: `${d.content.wordCount} מילים בדף.`,
+  });
+
+  // HSTS
+  guides.push({
+    name: 'HSTS', icon: '🛡',
+    score: d.scores.checks.find(c => c.name === 'HSTS')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'HSTS')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> HSTS מורה לדפדפן להשתמש תמיד ב-HTTPS, גם אם המשתמש הקליד HTTP. זה מונע התקפות Man-in-the-Middle ומשפר אבטחה.`,
+    example: `<strong>הוסף header בשרת:</strong><br><code>Strict-Transport-Security: max-age=31536000; includeSubDomains</code><br><br><strong>ב-Apache (.htaccess):</strong><br><code>Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"</code><br><br><strong>ב-Nginx:</strong><br><code>add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;</code>`,
+    currentIssue: !d.security.hsts ? 'HSTS לא מופעל — הדפדפן לא נאלץ להשתמש ב-HTTPS.' : '',
+    passTip: 'HSTS מופעל — הדפדפן תמיד ישתמש ב-HTTPS.',
+  });
+
+  // Accessibility
+  guides.push({
+    name: 'נגישות בסיסית', icon: '♿',
+    score: d.scores.checks.find(c => c.name === 'נגישות בסיסית')?.score ?? 0,
+    max: d.scores.checks.find(c => c.name === 'נגישות בסיסית')?.max ?? 5,
+    explain: `<strong>למה זה חשוב:</strong> נגישות היא חובה חוקית (תקנות שוויון זכויות), משפרת SEO, ופותחת את האתר לקהל רחב יותר. גוגל מתייחס חיובית לאתרים נגישים.`,
+    example: `<strong>בדיקות בסיסיות:</strong><br>1. <code>&lt;label for="email"&gt;</code> — תווית לכל שדה טופס<br>2. <code>&lt;a href="#main" class="skip-link"&gt;דלג לתוכן&lt;/a&gt;</code> — קישור דילוג<br>3. <code>&lt;nav role="navigation"&gt;</code> — ARIA landmarks<br>4. אל תשתמש ב-<code>tabindex</code> חיובי<br>5. ניגודיות צבעים מספקת (4.5:1 לטקסט)`,
+    currentIssue: d.accessibility.issues.length > 0 ? d.accessibility.issues.map(i => i.text).join('. ') + '.' : '',
+    passTip: 'לא נמצאו בעיות נגישות בסיסיות.',
+  });
+
+  // AI content
+  if (d.aiSignals.level !== 'low') {
+    guides.push({
+      name: 'תוכן בינה מלאכותית', icon: '🤖',
+      score: d.aiSignals.level === 'medium' ? 3 : 0,
+      max: 10,
+      explain: `<strong>למה זה חשוב:</strong> גוגל מזהה תוכן שנוצר אוטומטית ועלול להוריד דירוג. עדכוני Helpful Content Update מענישים תוכן AI שלא מספק ערך ייחודי.`,
+      example: `<strong>איך לשפר תוכן AI:</strong><br>1. <strong>הוסף חוויות אישיות</strong> — "בניסיון שלי...", "כשעבדנו עם..."<br>2. <strong>ספר סיפורים</strong> — case studies, דוגמאות ספציפיות<br>3. <strong>הוסף נתונים</strong> — מספרים, סטטיסטיקות, מחקרים<br>4. <strong>גוון שפה</strong> — הימנע ממשפטים כמו "חשוב לציין", "בעידן הדיגיטלי"<br>5. <strong>הוסף מדיה</strong> — תמונות מקוריות, סרטונים, אינפוגרפיקה`,
+      currentIssue: `ציון AI: ${d.aiSignals.score}/100 (${d.aiSignals.level === 'high' ? 'גבוה — דורש שכתוב' : 'בינוני — מומלץ לגוון'}). נמצאו ${d.aiSignals.totalSignals} סימנים.`,
+      passTip: '',
+    });
+  }
+
+  return guides;
 }
 
 /* ── Category card ── */
