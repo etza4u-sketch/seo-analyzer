@@ -43,6 +43,24 @@ function fetchPage(targetUrl, maxRedirects = 5) {
   });
 }
 
+/* ── Fetch text file (robots.txt / llms.txt) — silent fail ── */
+function fetchTextFile(fileUrl, timeout = 5000) {
+  return new Promise((resolve) => {
+    const mod = fileUrl.startsWith('https') ? https : http;
+    const req = mod.get(fileUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 SEO-Analyzer-Bot' },
+      timeout,
+    }, (res) => {
+      if (res.statusCode !== 200) { res.resume(); return resolve(null); }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
 /* ── Analyze endpoint ── */
 app.post('/api/analyze', async (req, res) => {
   const { url } = req.body;
@@ -50,13 +68,24 @@ app.post('/api/analyze', async (req, res) => {
 
   try {
     const targetUrl = url.startsWith('http') ? url : `https://${url}`;
-    new URL(targetUrl);
+    const parsedUrl = new URL(targetUrl);
 
     const startTime = Date.now();
-    const { html, finalUrl, statusCode, headers } = await fetchPage(targetUrl);
+
+    // Fetch page + robots.txt + llms.txt in parallel
+    const robotsUrl = `${parsedUrl.protocol}//${parsedUrl.host}/robots.txt`;
+    const llmsUrl = `${parsedUrl.protocol}//${parsedUrl.host}/llms.txt`;
+
+    const [pageResult, robotsTxt, llmsTxt] = await Promise.all([
+      fetchPage(targetUrl),
+      fetchTextFile(robotsUrl),
+      fetchTextFile(llmsUrl),
+    ]);
+
+    const { html, finalUrl, statusCode, headers } = pageResult;
     const fetchTime = Date.now() - startTime;
 
-    const analysis = analyzeHTML(html, finalUrl, statusCode, headers, fetchTime);
+    const analysis = analyzeHTML(html, finalUrl, statusCode, headers, fetchTime, robotsTxt, llmsTxt);
     res.json(analysis);
   } catch (err) {
     res.status(500).json({ error: `שגיאה בגישה לאתר: ${err.message}` });
@@ -64,7 +93,7 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 /* ── Main analysis ── */
-function analyzeHTML(html, url, statusCode, headers, fetchTime) {
+function analyzeHTML(html, url, statusCode, headers, fetchTime, robotsTxt, llmsTxt) {
   const $ = cheerio.load(html);
   const parsedUrl = new URL(url);
 
@@ -172,11 +201,14 @@ function analyzeHTML(html, url, statusCode, headers, fetchTime) {
   // AI Detection
   const aiSignals = detectAISignals($, bodyText, paragraphs);
 
+  // AI Citability
+  const aiCitability = analyzeAICitability($, bodyText, paragraphs, url, structuredData, headings, links, robotsTxt, llmsTxt);
+
   // Score
   const scores = computeScores({
     title, metaDescription, canonical, viewport, lang, isHttps,
     headings, images, links, structuredData, og, twitter,
-    htmlSize, hsts, robots, charset, wordCount, accessibility,
+    htmlSize, hsts, robots, charset, wordCount, accessibility, aiCitability,
   });
 
   return {
@@ -201,6 +233,7 @@ function analyzeHTML(html, url, statusCode, headers, fetchTime) {
     security: { isHttps, hsts: !!hsts, csp: !!csp, xFrameOptions: xFrame, xContentType: !!xContent, referrerPolicy: referrer },
     accessibility,
     aiSignals,
+    aiCitability,
     scores,
   };
 }
@@ -359,6 +392,219 @@ function detectAISignals($, bodyText, paragraphs) {
   };
 }
 
+/* ── AI Citability Analysis ── */
+function analyzeAICitability($, bodyText, paragraphs, url, structuredData, headings, links, robotsTxt, llmsTxt) {
+  const signals = [];
+  let score = 0;
+  const maxScore = 100;
+
+  // 1. llms.txt file exists (new standard for AI-friendly sites)
+  const hasLlmsTxt = !!llmsTxt && llmsTxt.trim().length > 10;
+  if (hasLlmsTxt) {
+    signals.push({ check: 'llms_txt', label: 'קובץ llms.txt קיים ומוגדר', status: 'pass', weight: 12 });
+    score += 12;
+  } else {
+    signals.push({ check: 'llms_txt', label: 'חסר קובץ llms.txt — מפתח לציטוט ע"י AI', status: 'fail', weight: 12 });
+  }
+
+  // 2. robots.txt — AI bots access
+  const aiBots = ['GPTBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-Web', 'Anthropic', 'PerplexityBot', 'Google-Extended', 'Bingbot', 'cohere-ai'];
+  let blockedBots = [];
+  let allowedBots = [];
+  if (robotsTxt) {
+    const robotsLower = robotsTxt.toLowerCase();
+    for (const bot of aiBots) {
+      const botLower = bot.toLowerCase();
+      // Check if there's a User-agent block that disallows this bot
+      const regex = new RegExp(`user-agent:\\s*${botLower}[\\s\\S]*?disallow:\\s*/`, 'i');
+      if (regex.test(robotsTxt) || (robotsLower.includes(`user-agent: ${botLower}`) && robotsLower.includes('disallow: /'))) {
+        blockedBots.push(bot);
+      } else {
+        allowedBots.push(bot);
+      }
+    }
+    // Check blanket block
+    if (/user-agent:\s*\*[\s\S]*?disallow:\s*\/\s*$/m.test(robotsTxt)) {
+      blockedBots = aiBots;
+      allowedBots = [];
+    }
+  } else {
+    allowedBots = aiBots; // no robots.txt = all allowed
+  }
+
+  if (blockedBots.length === 0) {
+    signals.push({ check: 'ai_bots_access', label: `בוטים של AI יכולים לגשת לאתר`, status: 'pass', weight: 10 });
+    score += 10;
+  } else if (blockedBots.length < aiBots.length) {
+    signals.push({ check: 'ai_bots_access', label: `${blockedBots.length} בוטים חסומים: ${blockedBots.join(', ')}`, status: 'partial', weight: 10, blocked: blockedBots });
+    score += 5;
+  } else {
+    signals.push({ check: 'ai_bots_access', label: 'כל בוטי ה-AI חסומים ב-robots.txt!', status: 'fail', weight: 10, blocked: blockedBots });
+  }
+
+  // 3. Author attribution — meta author, article:author, schema Person/Organization
+  const metaAuthor = $('meta[name="author"]').attr('content') || '';
+  const articleAuthor = $('meta[property="article:author"]').attr('content') || '';
+  const hasSchemaAuthor = structuredData.some(s => {
+    const raw = s.raw || s;
+    return raw.author || raw['@type'] === 'Person' || (raw['@type'] === 'Article' && raw.author);
+  });
+  const bylineSelectors = ['.author', '.byline', '[rel="author"]', '[itemprop="author"]', '.post-author'];
+  const hasByline = bylineSelectors.some(sel => $(sel).length > 0);
+
+  const authorSignals = [metaAuthor, articleAuthor, hasSchemaAuthor, hasByline].filter(Boolean).length;
+  if (authorSignals >= 2) {
+    signals.push({ check: 'author', label: `ייחוס מחבר חזק (${authorSignals} אותות)`, status: 'pass', weight: 10, author: metaAuthor || articleAuthor });
+    score += 10;
+  } else if (authorSignals === 1) {
+    signals.push({ check: 'author', label: 'ייחוס מחבר חלקי — מומלץ להוסיף עוד', status: 'partial', weight: 10, author: metaAuthor || articleAuthor });
+    score += 5;
+  } else {
+    signals.push({ check: 'author', label: 'אין ייחוס מחבר — AI לא יודע למי לייחס', status: 'fail', weight: 10 });
+  }
+
+  // 4. Structured data for citation (Article, FAQ, HowTo, QAPage, etc.)
+  const citableTypes = ['Article', 'NewsArticle', 'BlogPosting', 'TechArticle', 'ScholarlyArticle', 'FAQPage', 'HowTo', 'QAPage', 'Dataset', 'Report', 'WebPage'];
+  const foundCitable = structuredData.filter(s => citableTypes.includes(s.type || (s.raw && s.raw['@type'])));
+  if (foundCitable.length >= 2) {
+    signals.push({ check: 'schema_citable', label: `${foundCitable.length} סוגי Schema ציטוטיים: ${foundCitable.map(s => s.type).join(', ')}`, status: 'pass', weight: 10 });
+    score += 10;
+  } else if (foundCitable.length === 1) {
+    signals.push({ check: 'schema_citable', label: `סוג Schema ציטוטי: ${foundCitable[0].type}`, status: 'partial', weight: 10 });
+    score += 6;
+  } else {
+    signals.push({ check: 'schema_citable', label: 'אין Schema ציטוטי (Article, FAQ, HowTo)', status: 'fail', weight: 10 });
+  }
+
+  // 5. Q&A format headings (questions in H2/H3 that AI loves to cite)
+  const questionPatterns = /^(מה|איך|למה|מתי|האם|כמה|איפה|מי|what|how|why|when|where|who|which|can|does|is|are|do)\b/i;
+  let qaHeadings = 0;
+  const allH2H3 = [...(headings.h2?.samples || []), ...(headings.h3?.samples || [])];
+  for (const h of allH2H3) {
+    if (questionPatterns.test(h.trim()) || h.includes('?') || h.includes('؟')) qaHeadings++;
+  }
+  if (qaHeadings >= 3) {
+    signals.push({ check: 'qa_headings', label: `${qaHeadings} כותרות בפורמט שאלה-תשובה`, status: 'pass', weight: 8 });
+    score += 8;
+  } else if (qaHeadings >= 1) {
+    signals.push({ check: 'qa_headings', label: `${qaHeadings} כותרות שאלה — הוסף עוד`, status: 'partial', weight: 8 });
+    score += 4;
+  } else {
+    signals.push({ check: 'qa_headings', label: 'אין כותרות בפורמט שאלה — AI מצטט תשובות לשאלות', status: 'fail', weight: 8 });
+  }
+
+  // 6. Publication dates (freshness signal)
+  const pubDate = $('meta[property="article:published_time"]').attr('content') ||
+                  $('meta[name="date"]').attr('content') ||
+                  $('time[datetime]').attr('datetime') ||
+                  $('[itemprop="datePublished"]').attr('content') || '';
+  const modDate = $('meta[property="article:modified_time"]').attr('content') ||
+                  $('meta[name="last-modified"]').attr('content') ||
+                  $('[itemprop="dateModified"]').attr('content') || '';
+  if (pubDate && modDate) {
+    signals.push({ check: 'dates', label: 'תאריך פרסום ועדכון מוגדרים', status: 'pass', weight: 8, pubDate, modDate });
+    score += 8;
+  } else if (pubDate || modDate) {
+    signals.push({ check: 'dates', label: 'תאריך חלקי — הוסף גם תאריך עדכון', status: 'partial', weight: 8, pubDate, modDate });
+    score += 4;
+  } else {
+    signals.push({ check: 'dates', label: 'אין תאריכי פרסום — AI מעדיף תוכן עדכני ומתוארך', status: 'fail', weight: 8 });
+  }
+
+  // 7. Unique data: statistics, numbers, percentages in content
+  const statPatterns = /(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(%|אחוז|פי|מתוך|מיליון|מיליארד|percent|million|billion)/gi;
+  const statsMatches = bodyText.match(statPatterns) || [];
+  const yearPattern = /\b(20[12]\d)\b/g;
+  const yearMatches = bodyText.match(yearPattern) || [];
+  const uniqueYears = [...new Set(yearMatches)];
+
+  if (statsMatches.length >= 5) {
+    signals.push({ check: 'unique_data', label: `${statsMatches.length} נתונים סטטיסטיים — מעולה`, status: 'pass', weight: 10 });
+    score += 10;
+  } else if (statsMatches.length >= 2) {
+    signals.push({ check: 'unique_data', label: `${statsMatches.length} נתונים — הוסף עוד`, status: 'partial', weight: 10 });
+    score += 5;
+  } else {
+    signals.push({ check: 'unique_data', label: 'כמעט אין נתונים/סטטיסטיקות — AI מצטט מקורות עם נתונים', status: 'fail', weight: 10 });
+  }
+
+  // 8. Source citations — links to authoritative domains
+  const authoritativeDomains = /\.(gov|edu|ac|org|wiki)|wikipedia\.org|scholar\.google|pubmed|arxiv|reuters|bbc|nytimes/i;
+  let authoritativeLinks = 0;
+  const exDomains = links.externalDomains || [];
+  for (const d of exDomains) {
+    if (authoritativeDomains.test(d)) authoritativeLinks++;
+  }
+  if (authoritativeLinks >= 3) {
+    signals.push({ check: 'source_links', label: `${authoritativeLinks} קישורים למקורות סמכותיים`, status: 'pass', weight: 8 });
+    score += 8;
+  } else if (authoritativeLinks >= 1) {
+    signals.push({ check: 'source_links', label: `${authoritativeLinks} קישורים סמכותיים — הוסף עוד`, status: 'partial', weight: 8 });
+    score += 4;
+  } else {
+    signals.push({ check: 'source_links', label: 'אין קישורים למקורות סמכותיים (.edu, .gov, Wikipedia)', status: 'fail', weight: 8 });
+  }
+
+  // 9. Content depth & structure — clear sections, enough paragraphs
+  const wordCount = bodyText.split(/\s+/).filter(w => w.length > 1).length;
+  const h2Count = headings.h2?.count || 0;
+  const hasDefinitions = $('dl, dfn, [itemprop="description"]').length > 0 || /הגדרה:|מה זה |Definition:|refers to/i.test(bodyText);
+  const depthSignals = (wordCount > 800 ? 1 : 0) + (h2Count >= 3 ? 1 : 0) + (paragraphs.length >= 5 ? 1 : 0) + (hasDefinitions ? 1 : 0);
+
+  if (depthSignals >= 3) {
+    signals.push({ check: 'content_depth', label: 'תוכן מעמיק ומובנה — אידיאלי לציטוט', status: 'pass', weight: 12 });
+    score += 12;
+  } else if (depthSignals >= 2) {
+    signals.push({ check: 'content_depth', label: 'עומק תוכן בינוני — ניתן לשפר', status: 'partial', weight: 12 });
+    score += 6;
+  } else {
+    signals.push({ check: 'content_depth', label: 'תוכן רדוד — AI מעדיף תוכן מפורט ומעמיק', status: 'fail', weight: 12 });
+  }
+
+  // 10. Topic clarity — title + H1 + description alignment
+  const title = $('title').text().trim().toLowerCase();
+  const h1Text = (headings.h1?.samples[0] || '').toLowerCase();
+  const desc = ($('meta[name="description"]').attr('content') || '').toLowerCase();
+  const titleWords = title.split(/\s+/).filter(w => w.length > 2);
+  let topicOverlap = 0;
+  for (const w of titleWords) {
+    if (h1Text.includes(w)) topicOverlap++;
+    if (desc.includes(w)) topicOverlap++;
+  }
+  const topicScore = titleWords.length > 0 ? topicOverlap / (titleWords.length * 2) : 0;
+
+  if (topicScore >= 0.5) {
+    signals.push({ check: 'topic_clarity', label: 'נושא ברור — Title, H1 ו-Description מיושרים', status: 'pass', weight: 12 });
+    score += 12;
+  } else if (topicScore >= 0.25) {
+    signals.push({ check: 'topic_clarity', label: 'בהירות נושא חלקית — שפר את היישור', status: 'partial', weight: 12 });
+    score += 6;
+  } else {
+    signals.push({ check: 'topic_clarity', label: 'נושא לא ברור — Title, H1 ו-Description לא מיושרים', status: 'fail', weight: 12 });
+  }
+
+  // Calculate percentage
+  const percentage = Math.round((score / maxScore) * 100);
+  const level = percentage >= 70 ? 'high' : percentage >= 40 ? 'medium' : 'low';
+
+  return {
+    score,
+    maxScore,
+    percentage,
+    level,
+    signals,
+    hasLlmsTxt,
+    blockedBots,
+    allowedBots,
+    authorInfo: metaAuthor || articleAuthor || '',
+    pubDate,
+    modDate,
+    qaHeadings,
+    statsCount: statsMatches.length,
+    authoritativeLinks,
+  };
+}
+
 /* ── Score computation ── */
 function computeScores(data) {
   const checks = [];
@@ -426,6 +672,23 @@ function computeScores(data) {
   // Accessibility
   const accScore = data.accessibility.score >= 80 ? 5 : data.accessibility.score >= 50 ? 3 : 1;
   checks.push({ cat: 'accessibility', name: 'נגישות בסיסית', score: accScore, max: 5, tip: `ציון נגישות: ${data.accessibility.score}` });
+
+  // AI Citability checks
+  if (data.aiCitability) {
+    const cit = data.aiCitability;
+    const citPct = cit.percentage;
+    const citScore = citPct >= 70 ? 10 : citPct >= 40 ? 6 : citPct >= 20 ? 3 : 0;
+    checks.push({ cat: 'citability', name: 'ציטוטיות AI', score: citScore, max: 10,
+      tip: citPct >= 70 ? `ציון ציטוטיות: ${citPct}% — מוכן לציטוט AI` : citPct >= 40 ? `ציון ציטוטיות: ${citPct}% — ניתן לשיפור` : `ציון ציטוטיות: ${citPct}% — נדרש שיפור משמעותי` });
+
+    const llmsScore = cit.hasLlmsTxt ? 5 : 0;
+    checks.push({ cat: 'citability', name: 'קובץ llms.txt', score: llmsScore, max: 5,
+      tip: cit.hasLlmsTxt ? 'קובץ llms.txt קיים' : 'חסר llms.txt — הוסף כדי לאפשר לבוטי AI להבין את האתר' });
+
+    const botsScore = cit.blockedBots.length === 0 ? 5 : cit.blockedBots.length < 5 ? 3 : 0;
+    checks.push({ cat: 'citability', name: 'גישת בוטי AI', score: botsScore, max: 5,
+      tip: cit.blockedBots.length === 0 ? 'כל בוטי AI יכולים לגשת' : `${cit.blockedBots.length} בוטים חסומים` });
+  }
 
   const totalScore = checks.reduce((s, c) => s + c.score, 0);
   const maxScore = checks.reduce((s, c) => s + c.max, 0);

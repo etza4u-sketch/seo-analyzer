@@ -164,7 +164,7 @@
     .badge-gray { background: rgba(100,116,139,.15); color: var(--text2); }
 
     /* ── Score Row ── */
-    .score-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .score-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
 
     .score-card {
       background: var(--card);
@@ -781,9 +781,11 @@ function render(d) {
     <span class="badge badge-gray">${d.content.wordCount} מילים</span>`;
 
   // Score rings
+  const citPct = d.aiCitability ? d.aiCitability.percentage : 0;
   $('scoreRow').innerHTML = [
     ring(s.percentage, 'ציון SEO', gradeHe(s.percentage)),
     ring(aiHealth, 'בריאות AI', { low: 'תקין', medium: 'נדרשת בדיקה', high: 'חשוד' }[ai.level]),
+    ring(citPct, 'ציטוטיות AI', citPct >= 70 ? 'גבוהה' : citPct >= 40 ? 'בינונית' : 'נמוכה'),
     ring(secPct, 'אבטחה', d.security.isHttps ? 'HTTPS' : 'חסר HTTPS'),
     ring(accPct, 'נגישות', accPct >= 80 ? 'טוב' : accPct >= 50 ? 'בינוני' : 'דורש שיפור'),
   ].join('');
@@ -791,6 +793,7 @@ function render(d) {
   // Tabs
   const tabs = [
     { id: 'overview', label: 'סקירה כללית' },
+    { id: 'citability', label: '🤖 ציטוטיות AI' },
     { id: 'ai', label: 'אבחון AI' },
     { id: 'meta', label: 'מטא ותוכן' },
     { id: 'technical', label: 'טכני' },
@@ -812,6 +815,9 @@ function render(d) {
       ${renderQuickStats(d)}
     </div>
   </div>`;
+
+  // Citability
+  html += `<div class="tab-panel" id="panel-citability">${renderCitability(d)}</div>`;
 
   // Compare
   if (_competitorData) {
@@ -1087,6 +1093,87 @@ function getAIGuides(d) {
     passTip: 'לא נמצאו בעיות נגישות בסיסיות.',
   });
 
+  // AI Citability
+  if (d.aiCitability) {
+    const cit = d.aiCitability;
+    const citCheck = d.scores.checks.find(c => c.name === 'ציטוטיות AI');
+    guides.push({
+      name: 'ציטוטיות AI', icon: '🧲',
+      score: citCheck?.score ?? 0,
+      max: citCheck?.max ?? 10,
+      explain: `<strong>למה זה חשוב:</strong> בעידן ה-AI, מערכות כמו ChatGPT, Claude, Perplexity ו-Google AI Overview מצטטות אתרים כמקורות. ציטוטיות גבוהה = חשיפה חינמית ואמינות. זה ה-SEO החדש.`,
+      example: `<strong>איך להיות מצוטט ע"י AI:</strong><br>
+1. צור קובץ <code>llms.txt</code> בשורש האתר עם תיאור המומחיות<br>
+2. אל תחסום בוטי AI ב-<code>robots.txt</code><br>
+3. כתוב כותרות בפורמט שאלה-תשובה<br>
+4. הוסף נתונים ייחודיים, סטטיסטיקות, מחקרים<br>
+5. קשר למקורות סמכותיים<br>
+6. הגדר Schema מסוג Article/FAQ<br>
+7. הוסף ייחוס מחבר ותאריכי פרסום<br>
+<br><strong>דוגמה ל-llms.txt:</strong><br>
+<code># שם האתר<br>
+&gt; תיאור קצר של האתר והמומחיות<br>
+<br>
+## נושאים<br>
+- נושא 1<br>
+- נושא 2<br>
+<br>
+## מחבר<br>
+שם, תפקיד, רקע</code>`,
+      currentIssue: cit.percentage < 70 ? `ציון ציטוטיות: ${cit.percentage}% — ${cit.signals.filter(s => s.status === 'fail').map(s => s.label).slice(0, 3).join(', ')}` : '',
+      passTip: `ציון ציטוטיות ${cit.percentage}% — האתר מוכן להיות מצוטט ע"י מערכות AI.`,
+    });
+
+    // llms.txt guide
+    const llmsCheck = d.scores.checks.find(c => c.name === 'קובץ llms.txt');
+    guides.push({
+      name: 'קובץ llms.txt', icon: '📋',
+      score: llmsCheck?.score ?? 0,
+      max: llmsCheck?.max ?? 5,
+      explain: `<strong>למה זה חשוב:</strong> קובץ llms.txt הוא הסטנדרט החדש (כמו robots.txt ל-AI). הוא מסביר למודלי AI מה האתר שלך עושה, מי עומד מאחוריו, ובאילו נושאים הוא סמכותי.`,
+      example: `<strong>צור קובץ <code>llms.txt</code> בתיקייה הראשית:</strong><br>
+<code># שם האתר שלי<br>
+&gt; אתר מומחה בתחום [X] מאז [שנה]<br>
+<br>
+## מומחיות<br>
+- [תחום 1]<br>
+- [תחום 2]<br>
+<br>
+## מחבר ראשי<br>
+[שם], [תפקיד], [ניסיון]<br>
+<br>
+## קישורים חשובים<br>
+- [כתובת דף 1]: תיאור<br>
+- [כתובת דף 2]: תיאור</code>`,
+      currentIssue: !cit.hasLlmsTxt ? 'אין קובץ llms.txt — AI לא יודע מהי המומחיות של האתר.' : '',
+      passTip: 'קובץ llms.txt קיים — מערכות AI יכולות להבין את המומחיות של האתר.',
+    });
+
+    // AI Bots access guide
+    const botsCheck = d.scores.checks.find(c => c.name === 'גישת בוטי AI');
+    guides.push({
+      name: 'גישת בוטי AI', icon: '🤖',
+      score: botsCheck?.score ?? 0,
+      max: botsCheck?.max ?? 5,
+      explain: `<strong>למה זה חשוב:</strong> אם robots.txt חוסם בוטי AI (GPTBot, ClaudeBot, PerplexityBot), מערכות AI לא יוכלו לסרוק ולצטט את התוכן שלך. חסימה = אתה לא קיים עבור AI.`,
+      example: `<strong>ב-robots.txt, וודא שאתה לא חוסם:</strong><br>
+<code># מותר — בוטי AI יכולים לגשת<br>
+User-agent: GPTBot<br>
+Allow: /<br>
+<br>
+User-agent: ClaudeBot<br>
+Allow: /<br>
+<br>
+User-agent: PerplexityBot<br>
+Allow: /</code><br><br>
+<strong>חסום רק אם אתה רוצה:</strong><br>
+<code>User-agent: GPTBot<br>
+Disallow: /private/</code>`,
+      currentIssue: cit.blockedBots.length > 0 ? `בוטים חסומים: ${cit.blockedBots.join(', ')} — הם לא יכולים לצטט את האתר!` : '',
+      passTip: 'כל בוטי ה-AI יכולים לגשת לאתר — מצוין לציטוטיות.',
+    });
+  }
+
   // AI content
   if (d.aiSignals.level !== 'low') {
     guides.push({
@@ -1105,7 +1192,7 @@ function getAIGuides(d) {
 
 /* ── Category card ── */
 function renderCategoryCard(s) {
-  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות' };
+  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות', citability: 'ציטוטיות AI' };
   let rows = '';
   for (const [key, v] of Object.entries(s.categories)) {
     const pct = Math.round((v.score / v.max) * 100);
@@ -1289,6 +1376,125 @@ function renderChecks(d) {
 }
 
 /* ══════════════════════════════════════════
+   AI CITABILITY PANEL
+   ══════════════════════════════════════════ */
+
+function renderCitability(d) {
+  const cit = d.aiCitability;
+  if (!cit) return '<p style="color:var(--text2)">אין נתוני ציטוטיות AI.</p>';
+
+  const pct = cit.percentage;
+  const lvlHe = { high: 'גבוהה', medium: 'בינונית', low: 'נמוכה' };
+  const lvlClr = { high: 'var(--green)', medium: 'var(--yellow)', low: 'var(--red)' };
+  const lvlBg = { high: 'var(--green-bg)', medium: 'var(--yellow-bg)', low: 'var(--red-bg)' };
+
+  let h = `<div class="ai-card" style="margin-bottom:20px">
+    <div class="ai-head">
+      <span style="font-size:1.3rem">🧲</span>
+      <span class="ai-title">ציטוטיות AI — כמה האתר מוכן להיות מצוטט ע"י מערכות AI</span>
+      <span class="ai-level" style="background:${lvlBg[cit.level]};color:${lvlClr[cit.level]}">
+        ${lvlHe[cit.level]} — ${pct}%
+      </span>
+    </div>
+    <p style="color:var(--text2);font-size:.88rem;margin-bottom:16px">
+      בעידן ה-AI, מנועי חיפוש כמו ChatGPT, Claude, Perplexity ו-Google AI Overview מצטטים אתרים. ציון זה מודד עד כמה האתר שלך מוכן להיות מצוטט כמקור סמכותי.
+    </p>`;
+
+  // Signals list
+  const statusIcon = { pass: '✅', partial: '⚠️', fail: '❌' };
+  const statusClr = { pass: 'var(--green)', partial: 'var(--yellow)', fail: 'var(--red)' };
+
+  for (const sig of cit.signals) {
+    h += `<div class="signal" style="border-right:3px solid ${statusClr[sig.status]};padding-right:12px">
+      <span class="signal-icon">${statusIcon[sig.status]}</span>
+      <span class="signal-text">${esc(sig.label)}</span>
+      <span class="signal-badge" style="background:${sig.status === 'pass' ? 'var(--green-bg)' : sig.status === 'partial' ? 'var(--yellow-bg)' : 'var(--red-bg)'};color:${statusClr[sig.status]}">
+        ${sig.weight} נק׳
+      </span>
+    </div>`;
+  }
+
+  // Summary boxes
+  h += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px">`;
+
+  // llms.txt
+  h += `<div style="background:${cit.hasLlmsTxt ? 'var(--green-bg)' : 'var(--red-bg)'};padding:14px;border-radius:10px;text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">${cit.hasLlmsTxt ? '✅' : '❌'}</div>
+    <div style="font-weight:600;font-size:.85rem">llms.txt</div>
+    <div style="font-size:.78rem;color:var(--text2)">${cit.hasLlmsTxt ? 'קיים ומוגדר' : 'חסר — הוסף'}</div>
+  </div>`;
+
+  // Bots access
+  const botsOk = cit.blockedBots.length === 0;
+  h += `<div style="background:${botsOk ? 'var(--green-bg)' : 'var(--red-bg)'};padding:14px;border-radius:10px;text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">${botsOk ? '🤖' : '🚫'}</div>
+    <div style="font-weight:600;font-size:.85rem">גישת בוטי AI</div>
+    <div style="font-size:.78rem;color:var(--text2)">${botsOk ? 'כולם מורשים' : cit.blockedBots.length + ' חסומים'}</div>
+  </div>`;
+
+  // Author
+  h += `<div style="background:${cit.authorInfo ? 'var(--green-bg)' : 'var(--yellow-bg)'};padding:14px;border-radius:10px;text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">✍️</div>
+    <div style="font-weight:600;font-size:.85rem">ייחוס מחבר</div>
+    <div style="font-size:.78rem;color:var(--text2)">${cit.authorInfo ? esc(cit.authorInfo) : 'חסר'}</div>
+  </div>`;
+
+  // Stats
+  h += `<div style="background:${cit.statsCount >= 5 ? 'var(--green-bg)' : cit.statsCount >= 2 ? 'var(--yellow-bg)' : 'var(--red-bg)'};padding:14px;border-radius:10px;text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">📊</div>
+    <div style="font-weight:600;font-size:.85rem">נתונים/סטטיסטיקות</div>
+    <div style="font-size:.78rem;color:var(--text2)">${cit.statsCount} נמצאו</div>
+  </div>`;
+
+  // Q&A
+  h += `<div style="background:${cit.qaHeadings >= 3 ? 'var(--green-bg)' : cit.qaHeadings >= 1 ? 'var(--yellow-bg)' : 'var(--red-bg)'};padding:14px;border-radius:10px;text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">❓</div>
+    <div style="font-weight:600;font-size:.85rem">כותרות שאלה-תשובה</div>
+    <div style="font-size:.78rem;color:var(--text2)">${cit.qaHeadings} נמצאו</div>
+  </div>`;
+
+  // Dates
+  h += `<div style="background:${cit.pubDate ? 'var(--green-bg)' : 'var(--red-bg)'};padding:14px;border-radius:10px;text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">📅</div>
+    <div style="font-weight:600;font-size:.85rem">תאריכי פרסום</div>
+    <div style="font-size:.78rem;color:var(--text2)">${cit.pubDate ? 'מוגדרים' : 'חסרים'}</div>
+  </div>`;
+
+  h += `</div>`; // close grid
+
+  // Tips section
+  const failingSignals = cit.signals.filter(s => s.status !== 'pass');
+  if (failingSignals.length > 0) {
+    h += `<div style="margin-top:20px;padding:16px;background:rgba(255,255,255,.02);border-radius:10px">
+      <strong>💡 המלצות לשיפור ציטוטיות AI:</strong>
+      <ul style="color:var(--text2);font-size:.88rem;margin-top:8px;padding-right:20px;list-style-type:disc">`;
+
+    const tips = {
+      llms_txt: 'צור קובץ <code>llms.txt</code> בתיקיית השורש עם תיאור האתר, הנושאים והמומחיות — זה עוזר ל-AI להבין את האתר',
+      ai_bots_access: 'וודא שקובץ <code>robots.txt</code> לא חוסם בוטים כמו GPTBot, ClaudeBot, PerplexityBot',
+      author: 'הוסף <code>&lt;meta name="author"&gt;</code>, Schema של Person/Organization, וקרדיט מחבר גלוי בדף',
+      schema_citable: 'הוסף Schema מסוג Article, FAQ או HowTo — מבנים ש-AI מצטט בקלות',
+      qa_headings: 'כתוב כותרות H2/H3 בפורמט שאלה ("מה זה..?", "איך לעשות..?") — AI מצטט תשובות לשאלות',
+      dates: 'הוסף <code>article:published_time</code> ו-<code>article:modified_time</code> כדי ש-AI יעדיף תוכן עדכני',
+      unique_data: 'הוסף נתונים ייחודיים — אחוזים, מספרים, סטטיסטיקות. AI מצטט מקורות עם נתונים קונקרטיים',
+      source_links: 'קשר למקורות סמכותיים (.edu, .gov, Wikipedia) כדי לחזק את האמינות',
+      content_depth: 'הרחב את התוכן עם סקציות ברורות, הגדרות, ותוכן מעמיק של 800+ מילים',
+      topic_clarity: 'ודא שה-Title, H1 ו-Meta Description עוסקים באותו נושא עם מילות מפתח זהות',
+    };
+
+    for (const sig of failingSignals) {
+      if (tips[sig.check]) {
+        h += `<li style="margin-bottom:6px">${tips[sig.check]}</li>`;
+      }
+    }
+    h += `</ul></div>`;
+  }
+
+  h += `</div>`;
+  return h;
+}
+
+/* ══════════════════════════════════════════
    COMPETITOR COMPARISON
    ══════════════════════════════════════════ */
 
@@ -1315,6 +1521,7 @@ function renderCompare(a, b) {
     { label: 'זמן תגובה', a: a.fetchTime, b: b.fetchTime, unit: ' ms', higher: false },
     { label: 'סקריפטים', a: a.performance.scripts.total, b: b.performance.scripts.total, unit: '', higher: false },
     { label: 'נתונים מובנים', a: a.structuredData.length, b: b.structuredData.length, unit: '', higher: true },
+    { label: 'ציטוטיות AI', a: a.aiCitability ? a.aiCitability.percentage : 0, b: b.aiCitability ? b.aiCitability.percentage : 0, unit: '%', higher: true },
   ];
 
   let winsA = 0, winsB = 0, ties = 0;
@@ -1385,7 +1592,7 @@ function renderCompare(a, b) {
   h += '</tbody></table>';
 
   // Category comparison
-  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות' };
+  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות', citability: 'ציטוטיות AI' };
   h += `<div style="margin-top:16px"><strong style="font-size:.95rem">ציונים לפי קטגוריה:</strong></div>
   <table class="cmp-table" style="margin-top:8px"><thead><tr><th>קטגוריה</th><th style="text-align:center" dir="ltr">${esc(hostA)}</th><th style="text-align:center" dir="ltr">${esc(hostB)}</th></tr></thead><tbody>`;
 
@@ -1719,7 +1926,7 @@ function generateReport() {
   const secPct = d.security.isHttps ? (d.security.hsts ? 95 : 65) : 15;
   const accPct = d.accessibility.score;
   const lvlHe = { low: 'נמוך', medium: 'בינוני', high: 'גבוה' };
-  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות' };
+  const catNames = { meta: 'מטא תגיות', content: 'תוכן', technical: 'טכני', security: 'אבטחה', social: 'רשתות חברתיות', performance: 'ביצועים', accessibility: 'נגישות', citability: 'ציטוטיות AI' };
   const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
   const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
