@@ -247,8 +247,10 @@ function analyzeHTML(html, url, statusCode, headers, fetchTime, robotsTxt, llmsT
     } catch { /* ignore */ }
   });
 
-  // Content analysis
-  const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
+  // Content analysis — remove scripts, styles, nav, footer noise
+  const $content = cheerio.load($.html());
+  $content('script, style, noscript, svg, iframe, nav, footer, header, [role="navigation"], [role="banner"], [role="contentinfo"]').remove();
+  const bodyText = $content('body').text().replace(/\s+/g, ' ').trim();
   const wordCount = bodyText.split(/\s+/).filter(w => w.length > 1).length;
   const paragraphs = [];
   $('p').each((_, el) => {
