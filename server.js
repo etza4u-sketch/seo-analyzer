@@ -4,12 +4,33 @@ const { URL } = require('url');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const zlib = require('zlib');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ── Fetch with redirect support ── */
+/* ── Decompress response based on content-encoding ── */
+function decompressBuffer(buf, encoding) {
+  return new Promise((resolve, reject) => {
+    if (!encoding || encoding === 'identity') return resolve(buf);
+    if (encoding === 'gzip' || encoding === 'x-gzip') {
+      zlib.gunzip(buf, (err, result) => err ? resolve(buf) : resolve(result));
+    } else if (encoding === 'deflate') {
+      zlib.inflate(buf, (err, result) => {
+        if (!err) return resolve(result);
+        // Some servers send raw deflate without zlib header
+        zlib.inflateRaw(buf, (err2, result2) => err2 ? resolve(buf) : resolve(result2));
+      });
+    } else if (encoding === 'br') {
+      zlib.brotliDecompress(buf, (err, result) => err ? resolve(buf) : resolve(result));
+    } else {
+      resolve(buf);
+    }
+  });
+}
+
+/* ── Fetch with redirect support + gzip/brotli handling ── */
 function fetchPage(targetUrl, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
     if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
@@ -19,7 +40,7 @@ function fetchPage(targetUrl, maxRedirects = 5) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9,he;q=0.8',
-        'Accept-Encoding': 'identity',
+        'Accept-Encoding': 'gzip, deflate, br',
       },
       timeout: 15000,
     }, (res) => {
@@ -29,13 +50,34 @@ function fetchPage(targetUrl, maxRedirects = 5) {
       }
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
-      res.on('end', () => {
-        resolve({
-          html: Buffer.concat(chunks).toString('utf8'),
-          finalUrl: targetUrl,
-          statusCode: res.statusCode,
-          headers: res.headers,
-        });
+      res.on('end', async () => {
+        try {
+          const rawBuf = Buffer.concat(chunks);
+          const encoding = (res.headers['content-encoding'] || '').toLowerCase().trim();
+          const decoded = await decompressBuffer(rawBuf, encoding);
+
+          // Detect charset from content-type header
+          let charset = 'utf-8';
+          const ct = res.headers['content-type'] || '';
+          const csMatch = ct.match(/charset=([^\s;]+)/i);
+          if (csMatch) charset = csMatch[1].replace(/['"]/g, '');
+
+          let html;
+          try {
+            html = decoded.toString(charset);
+          } catch {
+            html = decoded.toString('utf-8');
+          }
+
+          resolve({
+            html,
+            finalUrl: targetUrl,
+            statusCode: res.statusCode,
+            headers: res.headers,
+          });
+        } catch (e) {
+          reject(e);
+        }
       });
     });
     req.on('error', reject);
@@ -43,18 +85,27 @@ function fetchPage(targetUrl, maxRedirects = 5) {
   });
 }
 
-/* ── Fetch text file (robots.txt / llms.txt) — silent fail ── */
+/* ── Fetch text file (robots.txt / llms.txt) — silent fail + gzip ── */
 function fetchTextFile(fileUrl, timeout = 5000) {
   return new Promise((resolve) => {
     const mod = fileUrl.startsWith('https') ? https : http;
     const req = mod.get(fileUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 SEO-Analyzer-Bot' },
+      headers: { 'User-Agent': 'Mozilla/5.0 SEO-Analyzer-Bot', 'Accept-Encoding': 'gzip, deflate, br' },
       timeout,
     }, (res) => {
       if (res.statusCode !== 200) { res.resume(); return resolve(null); }
       const chunks = [];
       res.on('data', c => chunks.push(c));
-      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      res.on('end', async () => {
+        try {
+          const rawBuf = Buffer.concat(chunks);
+          const encoding = (res.headers['content-encoding'] || '').toLowerCase().trim();
+          const decoded = await decompressBuffer(rawBuf, encoding);
+          resolve(decoded.toString('utf8'));
+        } catch {
+          resolve(null);
+        }
+      });
     });
     req.on('error', () => resolve(null));
     req.on('timeout', () => { req.destroy(); resolve(null); });
