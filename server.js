@@ -112,6 +112,30 @@ function fetchTextFile(fileUrl, timeout = 5000) {
   });
 }
 
+/* ── Fetch with retry + www fallback ── */
+async function fetchWithRetry(targetUrl, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetchPage(targetUrl);
+    } catch (err) {
+      const isDns = err.message && (err.message.includes('EAI_AGAIN') || err.message.includes('ENOTFOUND') || err.message.includes('getaddrinfo'));
+      // On DNS failure, try www. prefix
+      if (isDns && attempt === 0) {
+        const parsed = new URL(targetUrl);
+        if (!parsed.hostname.startsWith('www.')) {
+          try {
+            return await fetchPage(`${parsed.protocol}//www.${parsed.host}${parsed.pathname}${parsed.search}`);
+          } catch { /* fall through to retry */ }
+        }
+      }
+      // On last attempt, throw
+      if (attempt >= retries) throw err;
+      // Wait before retry
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+}
+
 /* ── Analyze endpoint ── */
 app.post('/api/analyze', async (req, res) => {
   const { url } = req.body;
@@ -123,12 +147,12 @@ app.post('/api/analyze', async (req, res) => {
 
     const startTime = Date.now();
 
-    // Fetch page + robots.txt + llms.txt in parallel
+    // Fetch page with retry + robots.txt + llms.txt in parallel
     const robotsUrl = `${parsedUrl.protocol}//${parsedUrl.host}/robots.txt`;
     const llmsUrl = `${parsedUrl.protocol}//${parsedUrl.host}/llms.txt`;
 
     const [pageResult, robotsTxt, llmsTxt] = await Promise.all([
-      fetchPage(targetUrl),
+      fetchWithRetry(targetUrl),
       fetchTextFile(robotsUrl),
       fetchTextFile(llmsUrl),
     ]);
